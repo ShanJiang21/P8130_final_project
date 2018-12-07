@@ -1,0 +1,18 @@
+---
+title: "Data_manipulation"
+author: "Shan Jiang"
+date: "12/7/2018"
+output: html_document
+---
+```{r}
+library(readr)
+library(tidyverse)
+```
+
+```{r}
+cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
+  janitor::clean_names() 
+
+head(cancer_raw)
+```
+
