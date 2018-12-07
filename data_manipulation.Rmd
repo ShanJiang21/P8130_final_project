@@ -64,6 +64,21 @@ cancer_b_raw =
   select(-target_death_rate, -avg_ann_count, -avg_deaths_per_year, -incidence_rate, -study_per_cap)
 ```
 
+```{r data cleaning}
+cancer_b_raw =
+  cancer_b_raw %>% 
+  # select median age as the only predictor to reflect the population age level
+  select(-median_age_male, -median_age_female) %>% 
+  # select median income as the only predictor to relect the population income level
+  select(-binned_inc) %>% 
+  # select percentage of residents employed as the only predictor to relect the population employment level
+  select(-pct_unemployed16_over) %>% 
+  # select percent of county residents with private health coverage as the only predictor to relect the population health coverage level
+  select(-pct_private_coverage_alone) %>% 
+  # select percentage of whits as the only predictor to relect the race proportion
+  select(-pct_black, -pct_asian)
+```
+
 ### Here are descriptive statistics for predictors
 
 
