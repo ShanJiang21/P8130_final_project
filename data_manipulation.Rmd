@@ -1,6 +1,6 @@
 ---
 title: "Data_manipulation"
-author: "Shan Jiang"
+author: "Shan Jiang, Jieqi Tu"
 date: "12/7/2018"
 output: github_document
 ---
