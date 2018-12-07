@@ -40,16 +40,28 @@ we first need to look at the distributions of our outcome variable.
 cancer_raw %>% 
   ggplot(aes(x = target_death_rate)) + 
     geom_histogram(aes(y = ..density..),  
-                   binwidth = 2, colour = "black", fill="white") +
+                   binwidth = 2, colour = "black", fill = "white") +
     geom_density(alpha = .1, fill = "#FF6666") +
     geom_vline(aes(xintercept = mean(target_death_rate, na.rm = T)),   # Ignore NA values for mean
                color = "red", linetype = "dashed", size = 1)# Overlay with transparent density plot
 ```
 
 ### Data cleaning
-```{r data cleaning}
-cancer_clean = 
-  cancer_raw
+```{r creating subsets for type(a) and type(b) variables}
+# Discard columns that have more than 10% NA values 
+cancer_raw = 
+  cancer_raw %>% 
+  select(-pct_private_coverage, -pct_some_col18_24)
+
+# Create a new dataset for type (a) variables
+cancer_a_raw = 
+  cancer_raw %>% 
+  select(target_death_rate, avg_ann_count, avg_deaths_per_year, incidence_rate, study_per_cap)
+
+# Create a new dataset for type (b) variables
+cancer_b_raw = 
+  cancer_raw %>% 
+  select(-target_death_rate, -avg_ann_count, -avg_deaths_per_year, -incidence_rate, -study_per_cap)
 ```
 
 ### Here are descriptive statistics for predictors
