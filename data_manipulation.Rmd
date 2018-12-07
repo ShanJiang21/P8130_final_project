@@ -4,16 +4,30 @@ author: "Shan Jiang"
 date: "12/7/2018"
 output: html_document
 ---
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(readr)
 library(tidyverse)
 ```
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
   janitor::clean_names() 
 
 head(cancer_raw)
 
+```
+
+There are in total `r ncol(cancer_raw)` variables  and `r nrow(cancer_raw)`observations in the dataset. 
+
+* The outcome variable in this datset is `target_death rate`(Continuous VARIABLE);
+
+* 
+
+### Variable selection 
+```{r}
+## categorical variable 
+
+
+##
 ```
 

@@ -378,24 +378,10 @@ $(document).ready(function () {
 
 <pre class="r"><code>library(readr)
 library(tidyverse)</code></pre>
-<pre><code>## ── Attaching packages ─────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
-<pre><code>## ✔ ggplot2 3.1.0     ✔ purrr   0.2.5
-## ✔ tibble  1.4.2     ✔ dplyr   0.7.8
-## ✔ tidyr   0.8.2     ✔ stringr 1.3.1
-## ✔ ggplot2 3.1.0     ✔ forcats 0.3.0</code></pre>
-<pre><code>## ── Conflicts ────────────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()</code></pre>
 <pre class="r"><code>cancer_raw = readr::read_csv(&quot;./Data/Cancer_Registry.csv&quot;) %&gt;% 
-  janitor::clean_names() </code></pre>
-<pre><code>## Parsed with column specification:
-## cols(
-##   .default = col_double(),
-##   binnedInc = col_character(),
-##   Geography = col_character()
-## )</code></pre>
-<pre><code>## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code>head(cancer_raw)</code></pre>
+  janitor::clean_names() 
+
+head(cancer_raw)</code></pre>
 <pre><code>## # A tibble: 6 x 34
 ##   avg_ann_count avg_deaths_per_… target_death_ra… incidence_rate med_income
 ##           &lt;dbl&gt;            &lt;dbl&gt;            &lt;dbl&gt;          &lt;dbl&gt;      &lt;dbl&gt;
@@ -417,6 +403,18 @@ library(tidyverse)</code></pre>
 ## #   pct_public_coverage_alone &lt;dbl&gt;, pct_white &lt;dbl&gt;, pct_black &lt;dbl&gt;,
 ## #   pct_asian &lt;dbl&gt;, pct_other_race &lt;dbl&gt;, pct_married_households &lt;dbl&gt;,
 ## #   birth_rate &lt;dbl&gt;</code></pre>
+<p>There are in total 34 variables and 3047observations in the dataset.</p>
+<ul>
+<li><p>The outcome variable in this datset is <code>target_death rate</code>(Continuous VARIABLE);</p></li>
+<li></li>
+</ul>
+<div id="variable-selection" class="section level3">
+<h3>Variable selection</h3>
+<pre class="r"><code>## categorical variable 
+
+
+##</code></pre>
+</div>
 
 
 
