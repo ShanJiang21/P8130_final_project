@@ -21,9 +21,38 @@ There are in total `r ncol(cancer_raw)` variables  and `r nrow(cancer_raw)`obser
 
 * The outcome variable in this datset is `target_death rate`(Continuous VARIABLE);
 
-* 
+* There are remaining `r ncol(cancer_raw)-1` predictors avaliable for use.
+
+### Here are descriptive statistics for `target_death rate`
+
+we first need to look at the distributions of our outcome variable.
+
+```{r}
+cancer_raw %>% 
+  ggplot(aes(x = target_death_rate)) + 
+    geom_histogram(aes(y = ..density..),  
+                   binwidth = 2, colour = "black", fill="white") +
+    geom_density(alpha = .1, fill = "#FF6666") +
+    geom_vline(aes(xintercept = mean(target_death_rate, na.rm = T)),   # Ignore NA values for mean
+               color = "red", linetype = "dashed", size = 1)# Overlay with transparent density plot
+```
+
+### Here are descriptive statistics for predictors
+
+
+
+```{r}
+
+```
+
 
 ### Variable selection 
+
+We are only interested in working with a subset of the most relevant variables.
+
+* For combination of *race*:we combined the `pct_white`, `pct_black`, `pct_asian`, `pct_other_race`. 
+
+
 ```{r}
 ## categorical variable 
 
@@ -31,3 +60,4 @@ There are in total `r ncol(cancer_raw)` variables  and `r nrow(cancer_raw)`obser
 ##
 ```
 
+## Multiple Linear Regression
