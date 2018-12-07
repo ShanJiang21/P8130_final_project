@@ -14,5 +14,6 @@ cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>%
   janitor::clean_names() 
 
 head(cancer_raw)
+
 ```
 
