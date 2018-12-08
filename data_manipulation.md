@@ -1,6 +1,6 @@
 Data\_manipulation
 ================
-Shan Jiang
+Shan Jiang, Jieqi Tu
 12/7/2018
 
 ``` r
@@ -24,14 +24,14 @@ head(cancer_raw)
 
     ## # A tibble: 6 x 34
     ##   avg_ann_count avg_deaths_per_… target_death_ra… incidence_rate med_income
-    ##           <dbl>            <int>            <dbl>          <dbl>      <int>
+    ##           <dbl>            <dbl>            <dbl>          <dbl>      <dbl>
     ## 1          1397              469             165.           490.      61898
     ## 2           173               70             161.           412.      48127
     ## 3           102               50             175.           350.      49348
     ## 4           427              202             195.           430.      44243
     ## 5            57               26             144.           350.      49955
     ## 6           428              152             176            505.      52313
-    ## # ... with 29 more variables: pop_est2015 <int>, poverty_percent <dbl>,
+    ## # ... with 29 more variables: pop_est2015 <dbl>, poverty_percent <dbl>,
     ## #   study_per_cap <dbl>, binned_inc <chr>, median_age <dbl>,
     ## #   median_age_male <dbl>, median_age_female <dbl>, geography <chr>,
     ## #   avg_household_size <dbl>, percent_married <dbl>, pct_no_hs18_24 <dbl>,
@@ -128,9 +128,10 @@ percentage_NA
 
 There are in total 34 variables and 3047observations in the dataset.
 
--   The outcome variable in this datset is `target_death rate`(Continuous VARIABLE);
+  - The outcome variable in this datset is `target_death
+    rate`(Continuous VARIABLE);
 
--   There are remaining 33 predictors avaliable for use.
+  - There are remaining 33 predictors avaliable for use.
 
 ### Here are descriptive statistics for `target_death rate`
 
@@ -146,7 +147,7 @@ cancer_raw %>%
                color = "red", linetype = "dashed", size = 1)# Overlay with transparent density plot
 ```
 
-![](data_manipulation_files/figure-markdown_github/unnamed-chunk-3-1.png)
+![](data_manipulation_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ### Data cleaning
 
@@ -167,13 +168,32 @@ cancer_b_raw =
   select(-target_death_rate, -avg_ann_count, -avg_deaths_per_year, -incidence_rate, -study_per_cap)
 ```
 
+``` r
+cancer_b_raw =
+  cancer_b_raw %>% 
+  # select median age as the only predictor to reflect the population age level
+  select(-median_age_male, -median_age_female) %>% 
+  # select median income as the only predictor to relect the population income level
+  select(-binned_inc) %>% 
+  # select percentage of residents employed as the only predictor to relect the population employment level
+  select(-pct_unemployed16_over) %>% 
+  # select percent of county residents with private health coverage as the only predictor to relect the population health coverage level
+  select(-pct_private_coverage_alone) %>% 
+  # select percentage of whits as the only predictor to relect the race proportion
+  select(-pct_black, -pct_asian)
+```
+
 ### Here are descriptive statistics for predictors
 
 ### Variable selection
 
-We are only interested in working with a subset of the most relevant variables.
+We are only interested in working with a subset of the most relevant
+variables.
 
--   For combination of *race*:we combined the `pct_white`, `pct_black`, `pct_asian`, `pct_other_race`.
+  - For combination of *race*:we combined the `pct_white`, `pct_black`,
+    `pct_asian`, `pct_other_race`.
+
+<!-- end list -->
 
 ``` r
 ## categorical variable 
@@ -182,5 +202,4 @@ We are only interested in working with a subset of the most relevant variables.
 ##
 ```
 
-Multiple Linear Regression
---------------------------
+## Multiple Linear Regression
