@@ -1,0 +1,234 @@
+---
+title: "Data Manipulation, EDA, Statistical Learning Tools"
+author: "Quinton Neville"
+date: "12/8/2018"
+output:
+  #html_document: default
+  #pdf_document: default
+  github_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,cache = TRUE,message = FALSE)
+```
+
+
+```{r results='hide', message=FALSE, warning=FALSE, include=FALSE}
+#Load all the good stuff.
+library(glmnet)
+library(tidyverse)
+library(gridExtra)
+library(readr)
+library(purrr)
+library(tree)
+library(randomForest)
+library(gbm)
+library(factoextra)
+library(ggdendro)
+library(readr)
+library(stringr)
+library(ggrepel)
+library(graphics)
+library(MASS)
+library(DMwR)
+library(e1071)
+```
+
+#Load, clean, manipulate, and tidy the data
+```{r message=FALSE, warning=FALSE}
+# Import data
+cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
+  janitor::clean_names() 
+
+dim(cancer_raw)
+head(cancer_raw)
+
+# Check NA values for each column
+n_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))))
+n_NA
+
+# Check the percentage of NA values for each column
+percentage_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))) / 3047)
+percentage_NA %>% data.frame()
+
+#Pulling quartiles for study_per_cap categorical manipulation
+study.quart <- with(cancer_raw, study_per_cap[study_per_cap > 0]) %>%
+  quantile(., probs = c(0.25, 0.5, 0.75))
+
+#Variable Manipulation
+cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing 
+  dplyr::select(-pct_some_col18_24) %>%  #Remove for too many missing
+  mutate(
+    pct_non_white = pct_black + pct_asian + pct_other_race, #Creating white, non-white percentages variables
+    state = str_split_fixed(geography, ", ", 2)[ ,2] %>% as.factor(), #pulling state variable and casting as factor, possible region?
+    binned_inc_lb = str_split_fixed(binned_inc, ", ", 2)[ ,1] %>% parse_number(), #pulling numeric lower bound
+    binned_inc_ub = str_split_fixed(binned_inc, ", ", 2)[ ,2] %>% parse_number(), #pulling numeric upper bound
+    binned_inc_point = (binned_inc_lb + binned_inc_ub)/2, #computing point estimate from ub,lb (intervals symmetric)
+    study_quantile = ifelse(study_per_cap == 0, "None", 
+                           ifelse(study_per_cap > 0 & study_per_cap <= study.quart[1], "Low", 
+                                  ifelse(study_per_cap > study.quart[1] & study_per_cap <= study.quart[2], "Moderate", 
+                                         ifelse(study_per_cap > study.quart[2] & study_per_cap <= study.quart[3], "High", 
+                                                "Very High")))),
+    study_quantile = as.factor(study_quantile) %>% fct_relevel(., "None", "Low", "Moderate", "High", "Very High"),
+    avg_deaths_yr_pop = avg_deaths_per_year/pop_est2015,  #incorporate two vars into one (multicollinearity)
+    avg_ann_count_pop = avg_ann_count/pop_est2015 #incorporate two vars into one (multicollinearity)
+  ) %>%
+  dplyr::select(-c(binned_inc, geography, study_per_cap))
+```
+
+#Imputing Values with less than 20% missing (two variables)
+
+- pct_employed16_over ~ 4%
+- pct_private_coverage_alone ~ 20%
+
+```{r warning = FALSE, message = FALSE}
+library(glmnet)
+library(tidyverse)
+#Impute those missing less than 20%
+#1. pct_employed16_over
+#2. pct_private_coverage_alone
+
+#Set up appropriate test and train for pct_employed16_over (removing other missing % variable and response (target death))
+train.df <- cancer.df %>% dplyr::select(-c(pct_private_coverage_alone, target_death_rate)) %>% filter(!is.na(pct_employed16_over))
+test.df <- cancer.df %>% dplyr::select(-c(pct_private_coverage_alone, target_death_rate)) %>% filter(is.na(pct_employed16_over))
+
+#Set up Matrices
+#Create Design Matrix Train
+X <- train.df %>% 
+  dplyr::select(-pct_employed16_over) %>%
+  names() %>% 
+  paste("~ ", paste(., collapse = "+")) %>%
+  formula() %>%
+  model.matrix(.,train.df)
+  
+#Create Design Matrix Test
+X1 <- test.df %>% 
+  dplyr::select(-pct_employed16_over) %>%
+  names() %>% 
+  paste("~ ", paste(., collapse = "+")) %>%
+  formula() %>%
+  model.matrix(., test.df)
+
+#Remove Intercept  
+X <- X[,-1]
+X1 <- X1[,-1]
+
+#Create Response vector (as matrix)
+Y <- train.df %>% dplyr::select(pct_employed16_over) %>% as.matrix()
+
+#Optimize lambda
+lambda.grid <- 10^seq(-3,1,length = 100)
+
+#CV n = 10
+cv.lasso <- cv.glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = lambda.grid, family = "gaussian")
+
+#Grab optimal lambda
+opt.lambda.lasso <- cv.lasso$lambda.min
+
+#Run model
+unemploy.lasso <- glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = opt.lambda.lasso, family = "gaussian")
+
+#Impute employed16_over_preds (first since it has less missing data ~4%)
+employed16_over_preds <- predict(unemploy.lasso, newx = X1)
+
+#Set up appropriate test and train
+train.df <- cancer.df %>% dplyr::select(-c(pct_employed16_over, target_death_rate)) %>% filter(!is.na(pct_private_coverage_alone))
+test.df <- cancer.df %>% dplyr::select(-c(pct_employed16_over, target_death_rate)) %>% filter(is.na(pct_private_coverage_alone))
+
+#Set up Matrices
+#Create Design Matrix Train
+X <- train.df %>% 
+  dplyr::select(-pct_private_coverage_alone) %>%
+  names() %>% 
+  paste("~ ", paste(., collapse = "+")) %>%
+  formula() %>%
+  model.matrix(.,train.df)
+  
+#Create Design Matrix Test
+X1 <- test.df %>% 
+  dplyr::select(-pct_private_coverage_alone) %>%
+  names() %>% 
+  paste("~ ", paste(., collapse = "+")) %>%
+  formula() %>%
+  model.matrix(., test.df)
+
+#Remove Intercept  
+X <- X[,-1]
+X1 <- X1[,-1]
+
+#Create Response vector (as matrix)
+Y <- train.df %>% dplyr::select(pct_private_coverage_alone) %>% as.matrix()
+
+#Optimize lambda
+lambda.grid <- 10^seq(-3,1,length = 100)
+
+#CV n = 10
+cv.lasso <- cv.glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = lambda.grid, family = "gaussian")
+
+#Grab optimal lambda
+opt.lambda.lasso <- cv.lasso$lambda.min
+
+#Run model
+cov.lasso <- glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = opt.lambda.lasso, family = "gaussian")
+
+#Impute pct_private_coverage_alone (second since it has more missing data ~20%)
+pct_private_coverage_alone_preds <- predict(cov.lasso, newx = X1)
+
+#Replace Imputed values
+cancer.df <- cancer.df %>%
+  mutate(imp_pct_employed16_over = ifelse(is.na(pct_employed16_over),
+                                          employed16_over_preds, pct_employed16_over),
+         imp_pct_private_coverage_alone = ifelse(is.na(pct_private_coverage_alone),
+                                          pct_private_coverage_alone_preds, pct_private_coverage_alone)
+        )
+
+#Check
+verif.df <- cancer.df %>%
+  dplyr::select(pct_employed16_over, imp_pct_employed16_over, pct_private_coverage_alone, imp_pct_private_coverage_alone)
+```
+
+looks good so we will take out extraneous variables for final df.
+```{r}
+#Looks good, so we will replace for our final data set
+cancer.df <- cancer.df %>%
+  dplyr::select(-c(pct_employed16_over, pct_private_coverage_alone))
+
+#Check it out 
+str(cancer.df)
+dim(cancer.df)
+
+#Check new percentage missing after removing one and imputing two
+# Check the percentage of NA values for each column
+percentage_NA = apply(cancer.df, 2, function(x) sum(length(which(is.na(x)))) / nrow(cancer.df))
+percentage_NA %>% data.frame() %>% knitr::kable()
+
+#No more missing data and we only had to throw out one variable
+```
+
+
+
+#PCA Analysis for Variable Selection
+
+*Plot is a bit messy, take subsets of the data and repeat
+```{r eval = FALSE}
+library(factoextra)
+library(ggdendro)
+library(MASS)
+
+#Scale and perform pca (take out non-continuous vars)
+cancer.pca <- cancer.df %>% 
+  dplyr::select(-c(state, study_quantile, target_death_rate)) %>%
+  scale() %>%
+  as.data.frame() %>%
+  prcomp()
+
+
+str(cancer.pca)
+
+fviz_pca_var(cancer.pca,
+             col.var="contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE )
+
+```
+
