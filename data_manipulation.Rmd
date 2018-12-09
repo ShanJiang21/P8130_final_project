@@ -7,6 +7,8 @@ output: github_document
 ```{r message=FALSE, warning=FALSE}
 library(readr)
 library(tidyverse)
+library(Hmisc)
+
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -14,8 +16,10 @@ library(tidyverse)
 cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
   janitor::clean_names() 
 
-dim(cancer_raw)
-head(cancer_raw)
+## Deacribe the statistics: glimpse
+statistics <- describe(cancer_raw)
+statistics 
+
 
 # Check NA values for each column
 n_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))))
@@ -80,8 +84,6 @@ cancer_b_raw =
 ```
 
 ### Here are descriptive statistics for predictors
-
-
 
 ```{r}
 
