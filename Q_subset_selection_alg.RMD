@@ -1,0 +1,571 @@
+---
+title: "Forward, Backward Subset Selection - MSE"
+author: "Quinton Neville"
+date: "12/8/2018"
+output:
+  #github_document
+  pdf_document: default
+  #html_document: default
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo = FALSE}
+#Load all the good stuff.
+library(tidyverse)
+library(readxl)
+library(readr)
+library(p8105.datasets)
+library(patchwork)
+library(ggridges)
+library(gridExtra)
+library(shiny)
+library(plotly)
+library(broom)
+library(scales)
+library(purrr)
+library(koRpus)
+library(modelr)
+library(glmnet)
+library(readr)
+library(purrr)
+library(tree)
+library(randomForest)
+library(gbm)
+library(factoextra)
+library(ggdendro)
+library(stringr)
+library(ggrepel)
+library(graphics)
+library(MASS)
+library(DMwR)
+library(e1071)
+library(leaps)
+library(broom)
+
+#Controlling figure output in markdown
+knitr::opts_chunk$set(
+#  fig.height =   
+  fig.width = 6,
+#  fig.asp = .5,
+  out.width = "90%",
+#  out.height = 
+ fig.align = "center",
+  cache = FALSE
+)
+
+#Set Theme for ggplot2
+theme_set(theme_bw() + theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom"))
+
+#Set Scientific notation output for knitr
+options(scipen = 999)
+```
+
+#Load, clean, manipulate, and tidy the data
+```{r message=FALSE, warning=FALSE}
+# Import data
+cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
+  janitor::clean_names() 
+
+#dim(cancer_raw)
+#head(cancer_raw)
+
+# Check NA values for each column
+#n_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))))
+#n_NA
+
+# Check the percentage of NA values for each column
+#percentage_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))) / 3047)
+#percentage_NA %>% data.frame()
+
+#Pulling quartiles for study_per_cap categorical manipulation
+study.quart <- with(cancer_raw, study_per_cap[study_per_cap > 0]) %>%
+  quantile(., probs = c(0.25, 0.5, 0.75))
+
+#Variable Manipulation
+cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing 
+  dplyr::select(-pct_some_col18_24) %>%  #Remove for too many missing
+  mutate(
+    pct_non_white = pct_black + pct_asian + pct_other_race, #Creating white, non-white percentages variables
+    state = str_split_fixed(geography, ", ", 2)[ ,2] %>% as.factor(), #pulling state variable and casting as factor, possible region?
+    binned_inc_lb = str_split_fixed(binned_inc, ", ", 2)[ ,1] %>% parse_number(), #pulling numeric lower bound
+    binned_inc_ub = str_split_fixed(binned_inc, ", ", 2)[ ,2] %>% parse_number(), #pulling numeric upper bound
+    binned_inc_point = (binned_inc_lb + binned_inc_ub)/2, #computing point estimate from ub,lb (intervals symmetric)
+    study_quantile = ifelse(study_per_cap == 0, "None", 
+                           ifelse(study_per_cap > 0 & study_per_cap <= study.quart[1], "Low", 
+                                  ifelse(study_per_cap > study.quart[1] & study_per_cap <= study.quart[2], "Moderate", 
+                                         ifelse(study_per_cap > study.quart[2] & study_per_cap <= study.quart[3], "High", 
+                                                "Very High")))),
+    study_quantile = as.factor(study_quantile) %>% fct_relevel(., "None", "Low", "Moderate", "High", "Very High"),
+    avg_deaths_yr_pop = avg_deaths_per_year/pop_est2015,  #incorporate two vars into one (multicollinearity)
+    avg_ann_count_pop = avg_ann_count/pop_est2015 #incorporate two vars into one (multicollinearity)
+  ) %>%
+  dplyr::select(-c(binned_inc, geography, study_per_cap))
+
+######TO avoid singular matrixes for our model fits, we need remove highly correlated and/or direct linear combos
+
+cancer.df <- cancer.df %>%
+  dplyr::select(-c(avg_deaths_yr_pop, avg_ann_count_pop, pct_non_white, binned_inc_point))
+```
+
+
+#Imputing Values with less than 20% missing (two variables)
+
+- pct_employed16_over ~ 4%
+- pct_private_coverage_alone ~ 20%
+
+```{r warning = FALSE, message = FALSE}
+#Impute those missing less than 20%
+#1. pct_employed16_over
+#2. pct_private_coverage_alone
+
+#Set up appropriate test and train for pct_employed16_over (removing other missing % variable and response (target death))
+train.df <- cancer.df %>% dplyr::select(-c(pct_private_coverage_alone, target_death_rate)) %>% filter(!is.na(pct_employed16_over))
+test.df <- cancer.df %>% dplyr::select(-c(pct_private_coverage_alone, target_death_rate)) %>% filter(is.na(pct_employed16_over))
+
+#Function for imputation (after correct test, train set up), charstring must literally be the character of impute variable i.e. "var1"
+impute.lasso <- function(train.df, test.df, charstring){
+
+  if ((charstring %in% names(train.df))) {
+    
+#pull variable index
+index <- which(names(train.df) == charstring)
+  
+#Set up Matrices
+#Create Design Matrix Train
+X <- train.df[ ,-index] %>%
+  names() %>% 
+  paste("~ ", paste(., collapse = "+")) %>%
+  formula() %>%
+  model.matrix(.,train.df)
+  
+#Create Design Matrix Test
+X1 <- test.df[, -index] %>%
+  names() %>% 
+  paste("~ ", paste(., collapse = "+")) %>%
+  formula() %>%
+  model.matrix(., test.df)
+
+#Remove Intercept  
+X <- X[,-1]
+X1 <- X1[,-1]
+
+#Create Response vector (as matrix)
+Y <- train.df[, index] %>% as.matrix()
+
+#Optimize lambda
+lambda.grid <- 10^seq(-3,1,length = 100)
+
+#CV n = 10
+cv.lasso <- cv.glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = lambda.grid, family = "gaussian")
+
+#Grab optimal lambda
+opt.lambda.lasso <- cv.lasso$lambda.min
+
+#Run model
+unemploy.lasso <- glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = opt.lambda.lasso, family = "gaussian")
+
+#Return predictions
+predict(unemploy.lasso, newx = X1)
+  }else{
+    stop("Error: Incorrect variable name")
+  }
+}
+
+#Impute employed16_over_preds (first since it has less missing data ~4%)
+employed16_over_preds <- impute.lasso(train.df = train.df, test.df, "pct_employed16_over")
+
+#Set up appropriate test and train
+train.df <- cancer.df %>% dplyr::select(-c(pct_employed16_over, target_death_rate)) %>% filter(!is.na(pct_private_coverage_alone))
+test.df <- cancer.df %>% dplyr::select(-c(pct_employed16_over, target_death_rate)) %>% filter(is.na(pct_private_coverage_alone))
+
+#Impute pct_private_coverage_alone (second since it has more missing data ~20%)
+pct_private_coverage_alone_preds <- impute.lasso(train.df = train.df, test.df, "pct_private_coverage_alone")
+
+#Replace Imputed values
+cancer.df <- cancer.df %>%
+  mutate(imp_pct_employed16_over = ifelse(is.na(pct_employed16_over),
+                                          employed16_over_preds, pct_employed16_over),
+         imp_pct_private_coverage_alone = ifelse(is.na(pct_private_coverage_alone),
+                                          pct_private_coverage_alone_preds, pct_private_coverage_alone)
+        )
+
+#Looks good, so we will replace imputed variables in our final data set
+cancer.df <- cancer.df %>%
+  dplyr::select(-c(pct_employed16_over, pct_private_coverage_alone))
+```
+
+
+See generally what the optimal number of preds in an lm() ought to be (CP, adj$R^2$, BIC (similar to AIC)).
+```{r fig.height = 6, warning = FALSE}
+#Summary of models for each size (one model per size)
+#Set max number of predictors
+nvmax <- ncol(cancer.df) - 2
+reg.subsets <- cancer.df %>% 
+  dplyr::select(-c(state)) %>%
+  regsubsets(target_death_rate ~ ., data = ., really.big = FALSE, nvmax = nvmax)
+rs <- summary(reg.subsets)
+
+# Plots of Cp and Adj-R2 as functions of parameters
+r.df <- tibble(
+  preds = 1:nvmax,
+  cp = rs$cp,
+  adjr2 = rs$adjr2,
+  bic = rs$bic,
+  step = 1:nvmax
+)
+
+cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
+  geom_point(colour = "purple") +
+  geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+ # geom_point(aes(x = preds, step),color = "black",size = 0.5) +
+  geom_line(aes(x = preds, step), size = 1, color = "red") +
+  labs(
+    x = "Number of Preds",
+    y = "CP Criterion",
+    title = "Optimal Number of Preds, CP"
+  ) + 
+  #scale_y_continuous(breaks = seq(0, 1000, 100))
+  ylim(c(0, 300)) + 
+  theme(legend.position = "none")
+
+adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
+  geom_point(colour = "purple") +
+  geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+  labs(
+    x = "Number of Preds",
+    y = "Adjusted R^2",
+    title = "Optimal Number of Preds, Adj.R^2"
+  ) + theme(legend.position = "none")
+
+bic.plot <- r.df %>% ggplot(aes(x = preds, y = bic, size = bic)) +
+  geom_point(colour = "purple") +
+  geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+  labs(
+    x = "Number of Preds",
+    y = "Bayesian Information Criterion",
+    title = "Optimal Number of Preds, BIC"
+  ) + theme(legend.position = "none")
+
+(cp.plot + adjr2.plot) / bic.plot
+
+```
+
+Based on the plots above, $CP$ criterion in the upper left with $p \leq CP$ constraint in red, that somewhere between a 20-30 predictor model ought to be optimal. With respect to adjusted $R^2$, it appears as though we reach a converging maximum starting around 20 predictors through about 25, where additional predictors have diminishing marginal return. Lastly, BIC is more conservative (penalizing more strongly for more predictors) and seems to suggest between a 15-20 predictor model (closer to 20). This may inform our subset selection criterion. 
+
+
+#K-fold cross validation funciton for subset selecion (MSE, AIC, R^2 criterion)
+```{r}
+sampleSize <- nrow(cancer.df)
+
+mseCV <- function(data.df, kfolds = 10){
+  folds <- sample(1:kfolds, sampleSize, rep = T)
+  mse <- rep(0, kfolds)
+  for (k in 1:kfolds) {
+    train.df <- data.df[folds != k,]
+    test.df <- data.df[folds == k,]
+    
+    lm.mod <- lm(target_death_rate ~ ., data = train.df)
+    preds <- predict(lm.mod, newdata = test.df)
+    mse[k] <- with(test.df,mean((target_death_rate - preds)^2))
+  }
+  mean(mse)
+}
+
+aicCV <- function(data.df, kfolds = 10){
+  folds <- sample(1:kfolds, sampleSize, rep = T)
+  aic <- rep(0, kfolds)
+  for (k in 1:kfolds) {
+    train.df <- data.df[folds != k,]
+    test.df <- data.df[folds == k,]
+    
+    lm.mod <- lm(target_death_rate ~ ., data = train.df)
+    aic[k] <- AIC(lm.mod)
+  }
+  mean(aic)
+}
+
+r2CV <- function(data.df, kfolds = 10){
+  folds <- sample(1:kfolds, sampleSize, rep = T)
+  r2 <- rep(0, kfolds)
+  for (k in 1:kfolds) {
+    train.df <- data.df[folds != k,]
+    test.df <- data.df[folds == k,]
+    
+    lm.mod <- lm(target_death_rate ~ ., data = train.df)
+    r2[k] <- summary(lm.mod)$adj.r.squared
+  }
+  mean(r2)
+}
+```
+
+
+#Forward Subset Selection with k-Fold CV and MSE criterion
+
+#Set up data for subset selection algorithm
+```{r}
+#Reorder the data so the response comes first, necessary for indexing
+sub.cancer.df <- cancer.df %>%
+  dplyr::select(target_death_rate, everything()) %>%
+  dplyr::select(-state) # need to take out state for CV to run, too many levels (51) will be fine for full model, test later
+
+```
+
+
+Function to run the subset algorithm, it will output the variable selection process so you visualize how it works. Comment out the set seed to get true variability in the subsets, only leave it in for reproducibility.
+
+- The function `f.subset.mse(sub.cancer.df, maxPreds = 10, nfolds = 5)` takes in a data frame, max number of predictors you want the algorithm to run through (can't be larger than the number of predictors in the data frame), and the number of folds for the cross validation.
+
+#####Note mustreorder data frame so response is the first column of the data frame (see above code chunk)
+#####Also have to take out state variable, too many factor levels and CV process can fail (re add later to see if it's useful)
+
+- The way the algorithm works is  
+1. Starts with an empty (null) set of current predictors in the data frame input  
+2. Starts with a full set of available predictors  
+3. Loops through all available preds and adds one at a time, splits the data into kfolds test/train (CV), fits lm() with current preds, stores MSE
+4. Selects the predictor whose CV MSE was smallest
+5. Adds 'best' predictor to current predictors, removes it from available predictors  
+6. Stores that predictor set as 'best' and records the indices and CV MSE in a matrix
+7. Repeats 3.- 5. until you have met the maximum number of predictors you specified
+8. Returns a list with all 'best' predictor sets at each iteration, matrix of results, and prespecified max preds
+9. Last few lines of code output the optimal (minimum MSE) predictor set 
+
+*notes - CV is set to 5 for speed, changing to 10 will take ~1.5 times as long to run*
+*notes - the print() lines within the function are so you can visualize how the algorithm is working, they can be commented out to reduce clutter when you want to run the selection function iteratively (avoids reams of output)*
+
+```{r warning = FALSE}
+#Forward Subset#
+set.seed(4) #Comment this out if you want to really get a different subset 
+
+f.subset <- function(sub.cancer.df, maxPreds = 10, nfolds = 5, criterion = "mse") {
+#Selection
+#number of possible predictors
+## Allthe predictors (their indices).
+allPreds <- 1:ncol(sub.cancer.df)
+allPreds <- allPreds[-1]
+
+#current set of preds (starts empty), and available
+currPreds <- c()
+availPreds <- setdiff(allPreds,currPreds)
+#Record the min errors
+minError <- c()
+#The maximimum size of our predictor set
+#maxPreds <- 30
+#Initalize pred list and mse result matrix
+pred.list <- list()
+result.mat <- matrix(nrow = ncol(cancer.df) - 1, ncol = 2)
+i <- 1
+#Forward selection loop
+while (length(currPreds) < maxPreds) {
+  ##add predictor which decreases MSE (as determined by CV or
+  ##Bootstrapping)
+  ## The MSEs computed as we add each of the available predictors
+  allError <- c()
+  for (id in availPreds) {
+    data.df <- sub.cancer.df[,c(currPreds,id,1)]
+    if (criterion == "mse") {
+      error <- mseCV(data.df, nfolds)
+    } else if (criterion == "aic") {
+      error <- aicCV(data.df, nfolds)
+    } else {
+      stop("Wrong criterion input")
+    }
+  #  error <- mseCV(data.df, nfolds)
+  #  error <- aicCV(data.df, nfolds)
+   # error <- r2CV(data.df, nfolds)
+    allError <- c(allError,error)
+  }
+  ##Find the min
+  id <- which.min(allError)
+  ##get the best predictor and MSW
+  bestPred <- availPreds[id]
+  bestError <- min(allError)
+  ##Add these into the collection
+  currPreds <- c(currPreds,bestPred)
+  minError <- c(minError,bestError)
+  availPreds <- setdiff(allPreds,currPreds)
+  ## Print stuff out for debugging and attention-grabbing
+  print(sprintf("Iteration: %i Predictor Added: %s %s Value: %s",i, names(sub.cancer.df[,bestPred]), criterion, bestError))
+  print(currPreds)
+  result.mat[i,] <- c(bestPred,bestError)         #You can also comment out this print output, it's just to watch the algorithm work
+  pred.list[[i]] <- currPreds
+  i <- i + 1
+    }
+  return(list(pred.list = pred.list, result.mat = result.mat, maxPreds = maxPreds))
+}
+
+#Run Subset, call function, output is a list with predictor sets, reslut matrix and maxPreds
+f.mse.list <- f.subset(sub.cancer.df, maxPreds = ncol(sub.cancer.df) - 1, nfolds = 5, criterion = "mse")
+f.aic.list <- f.subset(sub.cancer.df, maxPreds = ncol(sub.cancer.df) - 1, nfolds = 5, criterion = "aic")
+
+#Show the 'best' final selection with minimal MSE
+present.fs.result <- function(f.result.list, criterion) {
+lm.fs.preds <- with(f.result.list, pred.list[[which.min(result.mat[,2])]]) #Pick out indices from best model
+fs.mse <- with(f.result.list, result.mat[which.min(result.mat[,2]), 2])
+print(sprintf("The best predictor set of %s predictors, out of a max of %s, (%s = %s)",
+              length(lm.fs.preds), f.result.list$maxPreds, criterion, round(fs.mse, 3)))
+print(names(sub.cancer.df[,c(lm.fs.preds)]))
+}
+
+present.fs.result(f.mse.list, "MSE")
+present.fs.result(f.aic.list, "AIC")
+#fs.lm <- lm(target_death_rate ~ ., data = cancer.df[,c(lm.fs.preds,1)])
+```
+
+If you want to repeat the process to get a feel for what you think might actually be the best of the 'best' subset selections (they very slightly from iteration to iteration by cross validation). Pick the number of iterations `len` and let the chunk run, you can see the process work (reccomend commenting out the print() calls in the functions above to reduce all the extra output), then at the end it will print all the subsets selected and you can sift through which variables you want for a final subset model. See which ones get selected most often basically.
+
+```{r eval = FALSE}
+#Repeat if you want to
+#Number of repetitions
+len <- 10
+f.result.list <- list()
+
+#Repeat Subset Selection algorithm
+for (i in 1:len) {
+  f.result.list[[i]] <- f.subset(sub.cancer.df, maxPreds = 10, nfolds = 5, criterion = "mse")
+}
+
+#View the results
+for (i in 1:len) {
+present.fs.result(f.result.list[[i]], "MSE")
+}
+
+#See which vars seem to be selected most often, make a subjective call what subset you like best.
+
+#fs.lm <- lm(target_death_rate ~ ., data = cancer.df[,c(lm.fs.preds,1)])
+```
+
+
+
+#Repeat the process for Backwards Subset
+##NOTE this will take much longer to run
+
+#####Again must reorder data frame so response is the first column of the data frame (see above code chunk)
+#####Again state variable removed, too many factor levels and CV process can fail (re add later to see if it's useful)
+
+- The way the algorithm works is  
+1. Starts with an exhaustive set of current predictors in the data frame input (all preds in the data frame) 
+2. Starts with a empty set of predictors removed  
+3. Loops through all current preds and removes one at a time, splits the data into kfolds test/train (CV), fits lm() with current preds, stores MSE
+4. Selects the set whose CV MSE was smallest 
+5. The optimal set had one of the predictors removed, selects that predictor as 'worst; removes it from current predictors  
+6. Stores that predictor set as worst and records the indices and CV MSE in a matrix for the model without that pred
+7. Repeats 3.- 5. until you have met the minimum number of predictors you specified
+8. Returns a list with all 'best' predictor sets at each iteration, matrix of results, and prespecified max preds
+9. Last few lines of code output the optimal (minimum MSE) predictor set 
+
+*notes - CV is set to 5 for speed, changing to 10 will take ~1.5 times as long to run*
+*notes - the print() lines within the function are so you can visualize how the algorithm is working, they can be commented out to reduce clutter when you want to run the selection function iteratively (avoids reams of output)*
+
+```{r}
+sub.cancer.df <- cancer.df %>%
+  dplyr::select(target_death_rate, everything()) %>%
+  dplyr::select(-state)
+  #dplyr::select(-c(state, avg_deaths_yr_pop, avg_ann_count_pop, pct_non_white, binned_inc_point))
+#For backwards to work well we need remove vars we created that are combos of other vars,
+#This will work better when we have a smaller non-interdependent data set with reduced variables
+
+```
+
+
+```{r warning = FALSE}
+#Backward Selection
+#set.seed(44)  #Set seed for reproducibility
+###############################################
+
+maxPreds <- ncol(sub.cancer.df - 1)
+
+b.subset <- function(sub.cancer.df, minPreds = 1, nfolds = 5, criterion = "mse"){
+
+## Allthe predictors (their indices).
+allPreds <- 1:ncol(sub.cancer.df)
+allPreds <- allPreds[-1]
+
+#current set of preds (starts empty), and available
+currPreds <- allPreds
+availPreds <- allPreds
+#Record the min errors
+minError <- c()
+#The minimum size of our predictor set minPreds
+
+pred.list <- list()
+result.mat <- matrix(nrow = ncol(sub.cancer.df) - 1, ncol = 2)
+i <- 1
+#Forward selection loop
+while (length(currPreds) >= minPreds) {
+  ##add predictor which decreases MSE (as determined by CV)
+  ## The MSEs computed as we add each of the available predictors
+  allError <- c()
+  for (id in availPreds) {
+    data.df <- sub.cancer.df[,c(currPreds[-id],1)]
+    if (criterion == "mse") {
+      error <- mseCV(data.df, nfolds)
+    } else if (criterion == "aic") {
+      error <- aicCV(data.df, nfolds)
+    } else {
+      stop("Wrong criterion input")
+    }
+    allError <- c(allError,error)
+  }
+  ##Find the min
+  id <- which.min(allError)
+  ##get the worst predictor and MSE
+  worstPred <- availPreds[id]
+  bestError <- min(allError)
+  ##Add these into the collection
+  currPreds <- currPreds[-id]
+  minError <- c(minError, bestError)
+  availPreds <- currPreds
+  ## Print stuff out for debugging and attention-grabbing
+  print(sprintf("Predictor Removed: %s  %s Value: %s",names(sub.cancer.df[,worstPred]), criterion, bestError))
+  print(currPreds)
+  result.mat[i,] <- c(worstPred,bestError)
+  pred.list[[i]] <- currPreds
+  
+  i <- i + 1
+  }
+  list(pred.list = pred.list, result.mat = result.mat)
+}
+
+mse.result.list <- b.subset(sub.cancer.df, minPreds = 10, nfolds = 5, criterion = "mse")
+aic.result.list <- b.subset(sub.cancer.df, minPreds = 10, nfolds = 5, criterion = "aic")
+
+present.bs.result <- function(result.list, criterion) {
+lm.bs.preds <- with(result.list, pred.list[[which.min(result.mat[,2])]])
+lm.bs.mse <- with(result.list, result.mat[which.min(result.mat[,2]), 2])
+print(sprintf("The best predictor set of %s predictors, out of a max of %s, (%s = %s)",
+              length(lm.bs.preds), maxPreds, criterion, round(lm.bs.mse, 3)))
+names(sub.cancer.df[,c(lm.bs.preds)])
+}
+
+present.bs.result(mse.result.list, "MSE")
+present.bs.result(aic.result.list, "AIC")
+#bs.lm <- lm(life_exp ~ ., data = sub.cancer.df[,c(lm.bs.preds,1)])
+```
+
+
+In general, backwards selection selects larger models than forawrds. I would suggest only using forward selection in this case to choose a smaller model. Or stepwise based on some other criterion.
+
+
+Repeat to get a good feel for which preds get selected most often (note this will take a long time if the original p-set you are using is large, wouldnt use the full set for these iterations). This can be useful to get a feel for what you think might actually be the best of the 'best' subset selections (they very slightly from iteration to iteration by cross validation). Pick the number of iterations `len` and let the chunk run, you can see the process work (reccomend commenting out the print() calls in the functions above to reduce all the extra output), then at the end it will print all the subsets selected and you can sift through which variables you want for a final subset model. See which ones get selected most often basically.
+
+
+*This will take a long time to run*
+```{r eval = FALSE, warning = FALSE}
+#Repeat if you want to
+#Number of repetitions
+len <- 10
+b.result.list <- list()
+
+#Repeat Subset Selection algorithm
+for (i in 1:len) {
+  b.result.list[[i]] <- b.subset(sub.cancer.df, minPreds = 30, nfolds = 5, "mse")
+}
+
+#View the results
+for (i in 1:len) {
+present.bs.result(b.result.list[[i]], "MSE")
+}
+
+#See which vars seem to be selected most often, make a subjective call what subset you like best.
+
+#fs.lm <- lm(target_death_rate ~ ., data = cancer.df[,c(lm.fs.preds,1)])
+```

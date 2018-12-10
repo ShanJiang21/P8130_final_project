@@ -105,8 +105,8 @@ cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing
 - pct_private_coverage_alone ~ 20%
 
 ```{r warning = FALSE, message = FALSE}
-library(glmnet)
-library(tidyverse)
+#library(glmnet)
+#library(tidyverse)
 #Impute those missing less than 20%
 #1. pct_employed16_over
 #2. pct_private_coverage_alone
@@ -115,18 +115,26 @@ library(tidyverse)
 train.df <- cancer.df %>% dplyr::select(-c(pct_private_coverage_alone, target_death_rate)) %>% filter(!is.na(pct_employed16_over))
 test.df <- cancer.df %>% dplyr::select(-c(pct_private_coverage_alone, target_death_rate)) %>% filter(is.na(pct_employed16_over))
 
+#Function for imputation (after correct test, train set up), charstring must literally be the character of impute variable i.e. "var1"
+impute.lasso <- function(train.df, test.df, charstring){
+
+  if ((charstring %in% names(train.df))) {
+    
+#pull variable index
+index <- which(names(train.df) == charstring)
+  
+
 #Set up Matrices
 #Create Design Matrix Train
-X <- train.df %>% 
-  dplyr::select(-pct_employed16_over) %>%
+X <- train.df[ ,-index] %>%
   names() %>% 
   paste("~ ", paste(., collapse = "+")) %>%
   formula() %>%
   model.matrix(.,train.df)
   
+
 #Create Design Matrix Test
-X1 <- test.df %>% 
-  dplyr::select(-pct_employed16_over) %>%
+X1 <- test.df[, -index] %>%
   names() %>% 
   paste("~ ", paste(., collapse = "+")) %>%
   formula() %>%
@@ -137,7 +145,7 @@ X <- X[,-1]
 X1 <- X1[,-1]
 
 #Create Response vector (as matrix)
-Y <- train.df %>% dplyr::select(pct_employed16_over) %>% as.matrix()
+Y <- train.df[, index] %>% as.matrix()
 
 #Optimize lambda
 lambda.grid <- 10^seq(-3,1,length = 100)
@@ -151,51 +159,22 @@ opt.lambda.lasso <- cv.lasso$lambda.min
 #Run model
 unemploy.lasso <- glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = opt.lambda.lasso, family = "gaussian")
 
+#Return predictions
+predict(unemploy.lasso, newx = X1)
+  }else{
+    stop("Error: Incorrect variable name")
+  }
+}
+
 #Impute employed16_over_preds (first since it has less missing data ~4%)
-employed16_over_preds <- predict(unemploy.lasso, newx = X1)
+employed16_over_preds <- impute.lasso(train.df = train.df, test.df, "pct_employed16_over")
 
 #Set up appropriate test and train
 train.df <- cancer.df %>% dplyr::select(-c(pct_employed16_over, target_death_rate)) %>% filter(!is.na(pct_private_coverage_alone))
 test.df <- cancer.df %>% dplyr::select(-c(pct_employed16_over, target_death_rate)) %>% filter(is.na(pct_private_coverage_alone))
 
-#Set up Matrices
-#Create Design Matrix Train
-X <- train.df %>% 
-  dplyr::select(-pct_private_coverage_alone) %>%
-  names() %>% 
-  paste("~ ", paste(., collapse = "+")) %>%
-  formula() %>%
-  model.matrix(.,train.df)
-  
-#Create Design Matrix Test
-X1 <- test.df %>% 
-  dplyr::select(-pct_private_coverage_alone) %>%
-  names() %>% 
-  paste("~ ", paste(., collapse = "+")) %>%
-  formula() %>%
-  model.matrix(., test.df)
-
-#Remove Intercept  
-X <- X[,-1]
-X1 <- X1[,-1]
-
-#Create Response vector (as matrix)
-Y <- train.df %>% dplyr::select(pct_private_coverage_alone) %>% as.matrix()
-
-#Optimize lambda
-lambda.grid <- 10^seq(-3,1,length = 100)
-
-#CV n = 10
-cv.lasso <- cv.glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = lambda.grid, family = "gaussian")
-
-#Grab optimal lambda
-opt.lambda.lasso <- cv.lasso$lambda.min
-
-#Run model
-cov.lasso <- glmnet(X, Y, alpha = 1, intercept = TRUE, lambda = opt.lambda.lasso, family = "gaussian")
-
 #Impute pct_private_coverage_alone (second since it has more missing data ~20%)
-pct_private_coverage_alone_preds <- predict(cov.lasso, newx = X1)
+pct_private_coverage_alone_preds <- impute.lasso(train.df = train.df, test.df, "pct_private_coverage_alone")
 
 #Replace Imputed values
 cancer.df <- cancer.df %>%
@@ -222,8 +201,8 @@ dim(cancer.df)
 
 #Check new percentage missing after removing one and imputing two
 # Check the percentage of NA values for each column
-percentage_NA = apply(cancer.df, 2, function(x) sum(length(which(is.na(x)))) / nrow(cancer.df))
-percentage_NA %>% data.frame() %>% knitr::kable()
+#percentage_NA = apply(cancer.df, 2, function(x) sum(length(which(is.na(x)))) / nrow(cancer.df))
+#percentage_NA %>% data.frame() %>% knitr::kable()
 
 #No more missing data and we only had to throw out one variable
 ```
@@ -285,4 +264,6 @@ Here, we used PCA component analysis on the scaled continuous predictor set, pro
 
 8. Incidence rate has relatively small magnitude, but in a direction almost no other variable takes, so that should be kept I think.
 
-9.
+9. House hold size looks relatively unrelated
+
+10.
