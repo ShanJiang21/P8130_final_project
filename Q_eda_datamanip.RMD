@@ -4,20 +4,27 @@ author: "Quinton Neville"
 date: "12/8/2018"
 output:
   #html_document: default
-  #pdf_document: default
-  github_document
+  pdf_document: default
+  #github_document
 ---
-  
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,cache = TRUE,message = FALSE)
-```
 
-
-```{r results='hide', message=FALSE, warning=FALSE, include=FALSE}
+```{r results='hide', message=FALSE, warning=FALSE, echo = FALSE}
 #Load all the good stuff.
-library(glmnet)
 library(tidyverse)
+library(readxl)
+library(readr)
+library(p8105.datasets)
+library(patchwork)
+library(ggridges)
 library(gridExtra)
+library(shiny)
+library(plotly)
+library(broom)
+library(scales)
+library(purrr)
+library(koRpus)
+library(modelr)
+library(glmnet)
 library(readr)
 library(purrr)
 library(tree)
@@ -25,13 +32,29 @@ library(randomForest)
 library(gbm)
 library(factoextra)
 library(ggdendro)
-library(readr)
 library(stringr)
 library(ggrepel)
 library(graphics)
 library(MASS)
 library(DMwR)
 library(e1071)
+
+#Controlling figure output in markdown
+knitr::opts_chunk$set(
+#  fig.height =   
+  fig.width = 6,
+#  fig.asp = .5,
+  out.width = "90%",
+#  out.height = 
+ fig.align = "center",
+  cache = FALSE
+)
+
+#Set Theme for ggplot2
+theme_set(theme_bw() + theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom"))
+
+#Set Scientific notation output for knitr
+options(scipen = 999)
 ```
 
 #Load, clean, manipulate, and tidy the data
@@ -210,10 +233,7 @@ percentage_NA %>% data.frame() %>% knitr::kable()
 #PCA Analysis for Variable Selection
 
 *Plot is a bit messy, take subsets of the data and repeat
-```{r eval = FALSE}
-library(factoextra)
-library(ggdendro)
-library(MASS)
+```{r fig.width = 10}
 
 #Scale and perform pca (take out non-continuous vars)
 cancer.pca <- cancer.df %>% 
@@ -223,12 +243,46 @@ cancer.pca <- cancer.df %>%
   prcomp()
 
 
-str(cancer.pca)
+#str(cancer.pca)
 
-fviz_pca_var(cancer.pca,
-             col.var="contrib",
+name.vec <- cancer.df %>% dplyr::select(-c(state, study_quantile, target_death_rate)) %>% names()
+
+pca.viz1 <- fviz_pca_var(cancer.pca,
+             col.var = "contrib",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             repel = TRUE )
+             repel = TRUE,
+             select.var = list(name = name.vec[1:18]))
+
+pca.viz2 <- fviz_pca_var(cancer.pca,
+             col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE,
+             select.var = list(name = name.vec[19:35]))
+
+pca.viz1 + pca.viz2
+
 
 ```
 
+
+Here, we used PCA component analysis on the scaled continuous predictor set, projecting our $p$ = 35 dimensional predictor space onto the 2 dimensional PCA space with the two principal component vectors explaining the highest % of variability in the data( basically the best basis in $\mathcal{R^2}$to visualize how related each of our continuous predictors are to each other) vectors pointing in the same directions are explaining very simimlar types of the variance in the data (i.e. related, potentially multicollinearity), and the length(color) describes the magnitude or strength of how much of the variance in the data the predictor is explaining. It takes a while staring at it to understand exactly what is going on, and I split into two plots for clarity. Here are my takeaways:
+
+1. Median age female and male explain a good amount of variability but are very related, we should take a average of the two for an average median age  
+
+2. Percent white and percent married are explaining similiar variability at similiar strength, pct races are explaining different types of variability in the data, while pct_white and pct_non_white are explaining inverse types of variability in the data (180 degree angle) makes me think we should keep seperate race percentages  or pct_non_white, but not both (obviously) one while be better than the other.  
+
+3. Avg_ann_count, avg deaths, pop_est2015 are all explaining the same type and proportion of variability, should only use one (my best guess is pop_est2015 based on magnitude.)  
+
+3. pct_private, pct_public_cov, and pct_public alone are all explaining different types of variability but at sufficient magnitude and should be kept. However pct_private_cov is highly correlated with income, and should not be included if any type of income variable is in the model. 
+
+4. median_age is not a strong explanotary variable (by magnitude), and weirdly does not equal median_male + median_female /2. So I say we lose median_age and keep a variable for avg_median = median_male + median_female /2.  
+
+5. Drop the mutate avg_ann_count_pop, low magnitude and not explaining anything significantly. See (3.) for reccomendation on which var to select there.
+
+6. For income, all median_income, binned_inc_point estimate, binned_inc_lb, and binned_ub very related. I think we should either use median_income OR binned_inc_point estimate, but retain the lb, and ub as they seem to be explained different types of variability at good magnitude.
+
+7. pct_bach_deg25_over is better than pecent_bach_deg18_24, explaining similar variability. Maybe take an average of the two or only include pct_bach_deg25_over.
+
+8. Incidence rate has relatively small magnitude, but in a direction almost no other variable takes, so that should be kept I think.
+
+9.
