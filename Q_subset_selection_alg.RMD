@@ -3,8 +3,8 @@ title: "Forward, Backward Subset Selection - MSE"
 author: "Quinton Neville"
 date: "12/8/2018"
 output:
-  #github_document
-  pdf_document: default
+  github_document
+  #pdf_document: default
   #html_document: default
 ---
 
@@ -73,12 +73,18 @@ cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>%
 #n_NA
 
 # Check the percentage of NA values for each column
-#percentage_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))) / 3047)
+#percentage_NA = sapply(cancer_raw[1:34], function(x) sum(length(which(is.na(x)))) / nrow(cancer_raw))
 #percentage_NA %>% data.frame()
 
 #Pulling quartiles for study_per_cap categorical manipulation
 study.quart <- with(cancer_raw, study_per_cap[study_per_cap > 0]) %>%
   quantile(., probs = c(0.25, 0.5, 0.75))
+
+#To add a variable for region, state has too many factors for CV and data is not large enough for 51 fct var to be useful
+#From data(state) built in R, going to left_join with cancer.df
+#District of Columbia is missing, so I'm just going to impute it with the same factor as Maryland, 2
+data(state)
+state.df <- cbind(state.name, state.region) %>% as.tibble() %>% rename(state = state.name, region = state.region)
 
 #Variable Manipulation
 cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing 
@@ -98,14 +104,25 @@ cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing
     avg_deaths_yr_pop = avg_deaths_per_year/pop_est2015,  #incorporate two vars into one (multicollinearity)
     avg_ann_count_pop = avg_ann_count/pop_est2015 #incorporate two vars into one (multicollinearity)
   ) %>%
-  dplyr::select(-c(binned_inc, geography, study_per_cap))
+  left_join(., state.df) %>%
+  mutate(region = ifelse(is.na(region), 2, region),
+         region = as.factor(region)) %>%
+  dplyr::select(-c(binned_inc, geography, state, study_per_cap))
 
 ######TO avoid singular matrixes for our model fits, we need remove highly correlated and/or direct linear combos
-
+###### Also lets make the response index 1, makes everything easier
 cancer.df <- cancer.df %>%
-  dplyr::select(-c(avg_deaths_yr_pop, avg_ann_count_pop, pct_non_white, binned_inc_point))
+  dplyr::select(-c(avg_deaths_per_year, avg_ann_count, pct_black, pct_asian, pct_other_race, binned_inc_lb, binned_inc_ub)) %>%
+  dplyr::select(target_death_rate, everything())
+
+#mostly need to decide between white/non-white or all race % AND binned_inc_lb, ub or median income
 ```
 
+Note aboute study_quantile breakdown (0 vs. numeric quantile). May be better as binary yes/no? But then we lose info.
+```{r}
+cancer.df %>% group_by(study_quantile) %>% summarize(n = n()) %>% knitr::kable()
+
+```
 
 #Imputing Values with less than 20% missing (two variables)
 
@@ -131,16 +148,18 @@ index <- which(names(train.df) == charstring)
   
 #Set up Matrices
 #Create Design Matrix Train
-X <- train.df[ ,-index] %>%
+X <- train.df[ , -index] %>%
   names() %>% 
-  paste("~ ", paste(., collapse = "+")) %>%
+  paste(., collapse = "+") %>%    
+  paste("~ ", .) %>%
   formula() %>%
   model.matrix(.,train.df)
   
 #Create Design Matrix Test
 X1 <- test.df[, -index] %>%
   names() %>% 
-  paste("~ ", paste(., collapse = "+")) %>%
+  paste(., collapse = "+") %>%    
+  paste("~ ", .) %>%
   formula() %>%
   model.matrix(., test.df)
 
@@ -198,9 +217,8 @@ See generally what the optimal number of preds in an lm() ought to be (CP, adj$R
 ```{r fig.height = 6, warning = FALSE}
 #Summary of models for each size (one model per size)
 #Set max number of predictors
-nvmax <- ncol(cancer.df) - 2
+nvmax <- ncol(cancer.df) - 1
 reg.subsets <- cancer.df %>% 
-  dplyr::select(-c(state)) %>%
   regsubsets(target_death_rate ~ ., data = ., really.big = FALSE, nvmax = nvmax)
 rs <- summary(reg.subsets)
 
@@ -223,9 +241,8 @@ cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
     y = "CP Criterion",
     title = "Optimal Number of Preds, CP"
   ) + 
-  #scale_y_continuous(breaks = seq(0, 1000, 100))
   ylim(c(0, 300)) + 
-  theme(legend.position = "none")
+  theme(legend.position = "none") 
 
 adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
   geom_point(colour = "purple") +
@@ -249,10 +266,10 @@ bic.plot <- r.df %>% ggplot(aes(x = preds, y = bic, size = bic)) +
 
 ```
 
-Based on the plots above, $CP$ criterion in the upper left with $p \leq CP$ constraint in red, that somewhere between a 20-30 predictor model ought to be optimal. With respect to adjusted $R^2$, it appears as though we reach a converging maximum starting around 20 predictors through about 25, where additional predictors have diminishing marginal return. Lastly, BIC is more conservative (penalizing more strongly for more predictors) and seems to suggest between a 15-20 predictor model (closer to 20). This may inform our subset selection criterion. 
+Based on the plots above, $CP$ criterion in the upper left with $p \leq CP$ constraint in red, that somewhere around a 25-27 predictor model ought to be optimal. With respect to adjusted $R^2$, it appears as though we reach a converging maximum starting around 20 and negligible increase after, where additional predictors have diminishing marginal return. Lastly, BIC is more conservative (penalizing more strongly for more predictors) and seems to suggest between a 15-20 predictor model (closer to 20). This may inform our subset selection criterion. 
 
 
-#K-fold cross validation funciton for subset selecion (MSE, AIC, R^2 criterion)
+#K-fold cross validation funciton for subset selecion (MSE, AIC, BIC criterion)
 ```{r}
 sampleSize <- nrow(cancer.df)
 
@@ -283,32 +300,22 @@ aicCV <- function(data.df, kfolds = 10){
   mean(aic)
 }
 
-r2CV <- function(data.df, kfolds = 10){
+bicCV <- function(data.df, kfolds = 10){
   folds <- sample(1:kfolds, sampleSize, rep = T)
-  r2 <- rep(0, kfolds)
+  bic <- rep(0, kfolds)
   for (k in 1:kfolds) {
     train.df <- data.df[folds != k,]
     test.df <- data.df[folds == k,]
     
     lm.mod <- lm(target_death_rate ~ ., data = train.df)
-    r2[k] <- summary(lm.mod)$adj.r.squared
+    bic[k] <- BIC(lm.mod)
   }
-  mean(r2)
+  mean(bic)
 }
 ```
 
 
 #Forward Subset Selection with k-Fold CV and MSE criterion
-
-#Set up data for subset selection algorithm
-```{r}
-#Reorder the data so the response comes first, necessary for indexing
-sub.cancer.df <- cancer.df %>%
-  dplyr::select(target_death_rate, everything()) %>%
-  dplyr::select(-state) # need to take out state for CV to run, too many levels (51) will be fine for full model, test later
-
-```
-
 
 Function to run the subset algorithm, it will output the variable selection process so you visualize how it works. Comment out the set seed to get true variability in the subsets, only leave it in for reproducibility.
 
@@ -333,81 +340,95 @@ Function to run the subset algorithm, it will output the variable selection proc
 
 ```{r warning = FALSE}
 #Forward Subset#
-set.seed(4) #Comment this out if you want to really get a different subset 
+#set.seed(4) #Comment this out if you want to really get a different subset each time
+
+#Function
+#inputs:
+#full data frame (whatever that ends up being)
+#maximum number you want to look at subsets up to (no larger than p)
+#Number of folds for the cross validation step, 10 is a little slow but better for final paper
+#criterion to minimize -  either "mse", or "aic". Must put those in just as they appear with "
 
 f.subset <- function(sub.cancer.df, maxPreds = 10, nfolds = 5, criterion = "mse") {
-#Selection
+
 #number of possible predictors
 ## Allthe predictors (their indices).
 allPreds <- 1:ncol(sub.cancer.df)
-allPreds <- allPreds[-1]
+allPreds <- allPreds[-1] #substract the response
 
 #current set of preds (starts empty), and available
 currPreds <- c()
 availPreds <- setdiff(allPreds,currPreds)
 #Record the min errors
 minError <- c()
-#The maximimum size of our predictor set
-#maxPreds <- 30
-#Initalize pred list and mse result matrix
+#Initalize pred list and mse result matrix (just for storage)
 pred.list <- list()
 result.mat <- matrix(nrow = ncol(cancer.df) - 1, ncol = 2)
+#Initalize iteration
 i <- 1
 #Forward selection loop
 while (length(currPreds) < maxPreds) {
   ##add predictor which decreases MSE (as determined by CV or
   ##Bootstrapping)
-  ## The MSEs computed as we add each of the available predictors
+  ## The MSE/AIC computed as we add each of the available predictors
   allError <- c()
   for (id in availPreds) {
-    data.df <- sub.cancer.df[,c(currPreds,id,1)]
+    data.df <- sub.cancer.df[,c(currPreds,id,1)] #Only the preds we want in the df
     if (criterion == "mse") {
-      error <- mseCV(data.df, nfolds)
+      error <- mseCV(data.df, nfolds)  #cross validate mse for the model with the added pred
     } else if (criterion == "aic") {
-      error <- aicCV(data.df, nfolds)
+      error <- aicCV(data.df, nfolds) #same but with AIC
+    } else if (criterion == "bic") {
+      error <- bicCV(data.df, nfolds) #same bic
     } else {
+      print("Invalid criterion")
       stop("Wrong criterion input")
     }
-  #  error <- mseCV(data.df, nfolds)
-  #  error <- aicCV(data.df, nfolds)
-   # error <- r2CV(data.df, nfolds)
-    allError <- c(allError,error)
+    allError <- c(allError,error)  #Collect all the errors for every variable added
   }
   ##Find the min
   id <- which.min(allError)
-  ##get the best predictor and MSW
+  ##get the best predictor and lowest MSE/AIC
   bestPred <- availPreds[id]
   bestError <- min(allError)
   ##Add these into the collection
   currPreds <- c(currPreds,bestPred)
   minError <- c(minError,bestError)
+  ##Take out the pred you just added from consideration
   availPreds <- setdiff(allPreds,currPreds)
   ## Print stuff out for debugging and attention-grabbing
   print(sprintf("Iteration: %i Predictor Added: %s %s Value: %s",i, names(sub.cancer.df[,bestPred]), criterion, bestError))
   print(currPreds)
-  result.mat[i,] <- c(bestPred,bestError)         #You can also comment out this print output, it's just to watch the algorithm work
+  result.mat[i,] <- c(bestPred,bestError)         #You can also comment out all print() later, it's just to watch the algorithm work
   pred.list[[i]] <- currPreds
   i <- i + 1
     }
-  return(list(pred.list = pred.list, result.mat = result.mat, maxPreds = maxPreds))
+  return(list(pred.list = pred.list, result.mat = result.mat, maxPreds = maxPreds)) #returns list of preds, results, and max num preds
 }
 
 #Run Subset, call function, output is a list with predictor sets, reslut matrix and maxPreds
-f.mse.list <- f.subset(sub.cancer.df, maxPreds = ncol(sub.cancer.df) - 1, nfolds = 5, criterion = "mse")
-f.aic.list <- f.subset(sub.cancer.df, maxPreds = ncol(sub.cancer.df) - 1, nfolds = 5, criterion = "aic")
+f.mse.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "mse")
+f.aic.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "aic")
+f.bic.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "bic")
 
-#Show the 'best' final selection with minimal MSE
+#Show the 'best' final selection with minimal MSE (takes in a list object from the previous function, with criterion (MSE/AIC))
 present.fs.result <- function(f.result.list, criterion) {
 lm.fs.preds <- with(f.result.list, pred.list[[which.min(result.mat[,2])]]) #Pick out indices from best model
 fs.mse <- with(f.result.list, result.mat[which.min(result.mat[,2]), 2])
 print(sprintf("The best predictor set of %s predictors, out of a max of %s, (%s = %s)",
               length(lm.fs.preds), f.result.list$maxPreds, criterion, round(fs.mse, 3)))
-print(names(sub.cancer.df[,c(lm.fs.preds)]))
+print(names(cancer.df[,c(lm.fs.preds)]))
 }
 
+#Show the final results and subset selections, with CV criterion stats
 present.fs.result(f.mse.list, "MSE")
 present.fs.result(f.aic.list, "AIC")
-#fs.lm <- lm(target_death_rate ~ ., data = cancer.df[,c(lm.fs.preds,1)])
+present.fs.result(f.bic.list, "BIC")
+
+#Pull the indices for the selected models, for later comparison
+fs.mse.preds <- with(f.mse.list, pred.list[[which.min(result.mat[,2])]])
+fs.aic.preds <- with(f.aic.list, pred.list[[which.min(result.mat[,2])]])
+fs.bic.preds <- with(f.bic.list,  pred.list[[which.min(result.mat[,2])]])
 ```
 
 If you want to repeat the process to get a feel for what you think might actually be the best of the 'best' subset selections (they very slightly from iteration to iteration by cross validation). Pick the number of iterations `len` and let the chunk run, you can see the process work (reccomend commenting out the print() calls in the functions above to reduce all the extra output), then at the end it will print all the subsets selected and you can sift through which variables you want for a final subset model. See which ones get selected most often basically.
@@ -455,69 +476,70 @@ present.fs.result(f.result.list[[i]], "MSE")
 *notes - CV is set to 5 for speed, changing to 10 will take ~1.5 times as long to run*
 *notes - the print() lines within the function are so you can visualize how the algorithm is working, they can be commented out to reduce clutter when you want to run the selection function iteratively (avoids reams of output)*
 
-```{r}
-sub.cancer.df <- cancer.df %>%
-  dplyr::select(target_death_rate, everything()) %>%
-  dplyr::select(-state)
-  #dplyr::select(-c(state, avg_deaths_yr_pop, avg_ann_count_pop, pct_non_white, binned_inc_point))
-#For backwards to work well we need remove vars we created that are combos of other vars,
-#This will work better when we have a smaller non-interdependent data set with reduced variables
-
-```
-
 
 ```{r warning = FALSE}
 #Backward Selection
-#set.seed(44)  #Set seed for reproducibility
+#set.seed(4444)  #Set seed for reproducibility
 ###############################################
 
-maxPreds <- ncol(sub.cancer.df - 1)
+#Num all possible preds
+maxPreds <- ncol(cancer.df - 1)
+
+#Function
+#Inputs:
+#full data set (whatever that ends up being, ideally non-singular)
+#minimum number of preds you want the algorithm to reduce subsets to
+#Number of folds for CV step
+#Criterion to minimize: "mse" or "aic"
 
 b.subset <- function(sub.cancer.df, minPreds = 1, nfolds = 5, criterion = "mse"){
 
 ## Allthe predictors (their indices).
 allPreds <- 1:ncol(sub.cancer.df)
-allPreds <- allPreds[-1]
+allPreds <- allPreds[-1] #take out response
 
-#current set of preds (starts empty), and available
+#current set of preds (starts full), and available
 currPreds <- allPreds
 availPreds <- allPreds
 #Record the min errors
 minError <- c()
-#The minimum size of our predictor set minPreds
-
+#Set up storage objects
 pred.list <- list()
 result.mat <- matrix(nrow = ncol(sub.cancer.df) - 1, ncol = 2)
+#initialize iteration
 i <- 1
 #Forward selection loop
 while (length(currPreds) >= minPreds) {
-  ##add predictor which decreases MSE (as determined by CV)
-  ## The MSEs computed as we add each of the available predictors
+  ##remove predictor which has CV lm with lowest MSE/AIC (as determined by CV)
+  ## The MSE/AIC computed as we remove of the available predictors
   allError <- c()
   for (id in availPreds) {
-    data.df <- sub.cancer.df[,c(currPreds[-id],1)]
+    data.df <- sub.cancer.df[,c(currPreds[-id],1)]  #Take data frame without the predictor were removing
     if (criterion == "mse") {
-      error <- mseCV(data.df, nfolds)
+      error <- mseCV(data.df, nfolds)  #calculate CV mse
     } else if (criterion == "aic") {
-      error <- aicCV(data.df, nfolds)
+      error <- aicCV(data.df, nfolds)  #calculate CV aic
+    } else if (criterion == "bic") {
+      error <- bicCV(data.df, nfolds)  # CV bic
     } else {
+      print("Invalid criterion")
       stop("Wrong criterion input")
     }
-    allError <- c(allError,error)
+    allError <- c(allError,error)  #Collect all our criterions (error is misleading, can be mse or aic)
   }
   ##Find the min
   id <- which.min(allError)
   ##get the worst predictor and MSE
   worstPred <- availPreds[id]
   bestError <- min(allError)
-  ##Add these into the collection
+  ##Remove these from the collection
   currPreds <- currPreds[-id]
   minError <- c(minError, bestError)
   availPreds <- currPreds
   ## Print stuff out for debugging and attention-grabbing
   print(sprintf("Predictor Removed: %s  %s Value: %s",names(sub.cancer.df[,worstPred]), criterion, bestError))
   print(currPreds)
-  result.mat[i,] <- c(worstPred,bestError)
+  result.mat[i,] <- c(worstPred,bestError)   #All print() can be commented out at any time, just to visualize alg. process
   pred.list[[i]] <- currPreds
   
   i <- i + 1
@@ -525,20 +547,30 @@ while (length(currPreds) >= minPreds) {
   list(pred.list = pred.list, result.mat = result.mat)
 }
 
-mse.result.list <- b.subset(sub.cancer.df, minPreds = 10, nfolds = 5, criterion = "mse")
-aic.result.list <- b.subset(sub.cancer.df, minPreds = 10, nfolds = 5, criterion = "aic")
+#Call functions, output is a list of preds and a result matrix of criterion and predictor removed
+b.mse.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "mse")
+b.aic.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "aic")
+b.bic.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "bic")
 
+#Visualize function takes in a list object from the last function
 present.bs.result <- function(result.list, criterion) {
 lm.bs.preds <- with(result.list, pred.list[[which.min(result.mat[,2])]])
 lm.bs.mse <- with(result.list, result.mat[which.min(result.mat[,2]), 2])
 print(sprintf("The best predictor set of %s predictors, out of a max of %s, (%s = %s)",
               length(lm.bs.preds), maxPreds, criterion, round(lm.bs.mse, 3)))
-names(sub.cancer.df[,c(lm.bs.preds)])
+names(cancer.df[,c(lm.bs.preds)])
 }
 
-present.bs.result(mse.result.list, "MSE")
-present.bs.result(aic.result.list, "AIC")
-#bs.lm <- lm(life_exp ~ ., data = sub.cancer.df[,c(lm.bs.preds,1)])
+#Present the final subsets which were selected
+present.bs.result(b.mse.list, "MSE")
+present.bs.result(b.aic.list, "AIC")
+present.bs.result(b.bic.list, "BIC")
+
+#Pull the indices for the selected models, for later comparison
+bs.mse.preds <- with(b.mse.list, pred.list[[which.min(result.mat[,2])]])
+bs.aic.preds <- with(b.aic.list, pred.list[[which.min(result.mat[,2])]])
+bs.bic.preds <- with(b.bic.list,  pred.list[[which.min(result.mat[,2])]])
+
 ```
 
 
@@ -546,6 +578,237 @@ In general, backwards selection selects larger models than forawrds. I would sug
 
 
 Repeat to get a good feel for which preds get selected most often (note this will take a long time if the original p-set you are using is large, wouldnt use the full set for these iterations). This can be useful to get a feel for what you think might actually be the best of the 'best' subset selections (they very slightly from iteration to iteration by cross validation). Pick the number of iterations `len` and let the chunk run, you can see the process work (reccomend commenting out the print() calls in the functions above to reduce all the extra output), then at the end it will print all the subsets selected and you can sift through which variables you want for a final subset model. See which ones get selected most often basically.
+
+
+#Ridge and Lasso Functions for Comparison
+```{r}
+#Initialize Sample Size
+sampleSize <- nrow(cancer.df)
+
+#Initialize lambda grid
+lambda.grid <- 10^seq(-3,1,length = 100)
+
+ridge <- function(data, response = "target_death_rate") {
+
+  #Snag the index for the matrices  
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[ ,index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(., data)
+  X <- X[,-1]
+  
+  #Lambda optimize
+  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = lambda.grid, family = "gaussian")
+  lambda.opt.ridge <- cv.ridge$lambda.min
+  
+  #Return model
+  return(glmnet(X,Y,alpha = 0,intercept = T,lambda = lambda.opt.ridge, family = "gaussian"))
+}
+
+lasso <- function(data, response = "target_death_rate", print = FALSE) {
+  
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[, index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(.,data)
+  X <- X[,-1]  
+  
+  #Optimize Lambda
+  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.grid, family = "gaussian")
+  lambda.opt.lasso <- cv.lasso$lambda.min
+  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.opt.lasso,family = "gaussian")
+  #Print if true
+  if (isTRUE(print)) {
+  coef.lasso <- coef(mod.lasso)[,1]
+    print("The Lasso method selected the variables:")
+    print(paste(names(which(coef.lasso != 0))))
+  }
+  return(mod.lasso)
+}
+
+glmnet.mse <- function(model, data, response = "target_death_rate") {
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  #Design matrix
+  X1 <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(., data)
+  X1 <- X1[,-1] 
+  preds <- predict(model, newx = X1, type = "response")
+  return(with(data, mean((target_death_rate - preds)^2)))
+}
+
+lassoCV <- function(data.df = cancer.df, kfolds = 10, response = "target_death_rate"){
+  index <- which(names(data.df) == response) #Grab response index for matrices
+  folds <- sample(1:kfolds, sampleSize, rep = T) #Randomly sample indeices for kfolds
+  error <- rep(0, kfolds) #initialize error vector
+  for (k in 1:kfolds) {
+    train.df <- data.df[folds != k,] #Split into test train
+    test.df <- data.df[folds == k,]
+    X1 <- test.df[ , -index] %>%
+          names() %>% 
+          paste(., collapse = "+") %>%    
+          paste("~ ", .) %>%
+          formula() %>%
+          model.matrix(.,test.df)
+    X1 <- X1[,-1]
+     
+    lasso.mod <- lasso(train.df, response)
+       preds <- predict(lasso.mod, newx = X1, type = "response")
+    error[k] <- with(test.df, mean((target_death_rate - preds)^2))
+  }
+  mean(error) #return kfold mean mse
+}
+
+ridgeCV <- function(data.df, kfolds = 10, response){
+  index <- which(names(data.df) == response) #Grab response index for matrices
+  folds <- sample(1:kfolds, sampleSize, rep = T) #Randomly sample indeices for kfolds
+  error <- rep(0, kfolds) #initialize error vector
+  for (k in 1:kfolds) {
+    train.df <- data.df[folds != k,] #Split into test train
+     test.df <- data.df[folds == k,]
+    #Design test matrix
+  X1 <- test.df[ , -index] %>%
+  names() %>% 
+  paste(., collapse = "+") %>%    
+  paste("~ ", .) %>%
+  formula() %>%
+  model.matrix(.,test.df)
+  #Remove Intercept
+   X1 <- X1[ ,-1] 
+  #Fit model, predict on kth fold, record mse
+   ridge.mod <- ridge(train.df, response)
+       preds <- predict(ridge.mod, newx = X1, type = "response")
+    error[k] <- with(test.df, mean((target_death_rate - preds)^2))
+  }
+  mean(error) #return kfold mean mse
+}
+
+#test - lasso, ridge - all good
+#ridge(data = cancer.df)
+#lasso(data = cancer.df, print = TRUE)
+
+#test - CV - all good
+lassoCV(cancer.df, 10, "target_death_rate")
+ridgeCV(cancer.df, 10, "target_death_rate")
+```
+
+
+
+#Model Comparison with Iterative 10-Fold CV
+Takes a bit to run.
+```{r}
+#Number of CV iterations
+nrep <- 100
+
+#make sure target_death_rate is the first index in the data set (just way easier that way) District of columbia is a problem
+#State is a problem, need to make a region variable
+library(modelr)
+cv.df <- cancer.df %>%
+         crossv_mc(., nrep) %>%
+  mutate(train = map(train, as.tibble),
+         test = map(test, as.tibble)) %>%
+  mutate(fs.mse.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.mse.preds, 1)])),
+         fs.aic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.aic.preds, 1)])),
+         fs.bic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.bic.preds, 1)])),
+         bs.mse.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.mse.preds, 1)])),
+         bs.aic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.aic.preds, 1)])),
+         bs.bic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.bic.preds, 1)])),
+         lasso.lm  = map(train, ~lasso(data = .x)),
+         ridge.lm  = map(train, ~ridge(data = .x))) %>%
+  mutate(fs.mse.mse = map2_dbl(fs.mse.lm, test, ~mse(model = .x, data = .y)),
+         fs.aic.mse = map2_dbl(fs.aic.lm, test, ~mse(model = .x, data = .y)),
+         fs.bic.mse = map2_dbl(fs.bic.lm, test, ~mse(model = .x, data = .y)),
+         bs.mse.mse = map2_dbl(bs.mse.lm, test, ~mse(model = .x, data = .y)),
+         bs.aic.mse = map2_dbl(bs.aic.lm, test, ~mse(model = .x, data = .y)),
+         bs.bic.mse = map2_dbl(bs.bic.lm, test, ~mse(model = .x, data = .y)),
+         lasso.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
+         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)))
+
+```
+
+#Visualize Model Comparison
+```{r}
+#Violin box plots
+violin.mse <- cv.df %>% 
+  dplyr::select(ends_with(".mse")) %>% 
+  gather(key = model, value = mse) %>% 
+  mutate(model = str_replace(model, "mse", ""),
+         model = fct_reorder(model, mse, .desc = FALSE, .fun = mean)) %>% 
+  ggplot(aes(x = model, y = mse)) + 
+  geom_violin(aes(fill = model), trim = FALSE, alpha = 0.3) + 
+  geom_boxplot(width = 0.25) +
+  labs(
+    y = "Root Mean Sqaure Error",
+    x = "Model",
+    title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
+  ) +
+  viridis::scale_fill_viridis(
+    option = "magma",
+    name = "MSE",
+    begin = 1,
+    end = 0,
+    discrete = TRUE) 
+
+density.mse <- cv.df %>%
+   dplyr::select(ends_with(".mse")) %>% 
+  gather(key = model, value = mse) %>% 
+  mutate(model = str_replace(model, ".mse", ""),
+         model = fct_reorder(model, mse, .desc = FALSE, .fun = mean)) %>% 
+  ggplot(aes(x = mse, colour = model, fill = model)) + 
+  geom_density(position = "stack", alpha = 0.3) + 
+  #geom_boxplot(width = 0.25) +
+  labs(
+    y = "Root Mean Sqaure Error",
+    x = "Model",
+    title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
+  ) +
+  viridis::scale_fill_viridis(
+    option = "magma",
+    name = "MSE",
+    begin = 1,
+    end = 0,
+    discrete = TRUE) +
+    viridis::scale_colour_viridis(
+    option = "magma",
+    name = "MSE",
+    begin = 1,
+    end = 0,
+    discrete = TRUE)
+```
+
+```{r echo = FALSE}
+  violin.mse
+  density.mse
+
+```
+
+
+
+
+
+
+
 
 
 *This will take a long time to run*
