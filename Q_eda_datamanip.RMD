@@ -192,7 +192,7 @@ verif.df <- cancer.df %>%
 looks good so we will take out extraneous variables for final df.
 ```{r}
 #Looks good, so we will replace for our final data set
-cancer.df <- cancer.df %>%
+cancer.df <- cancer.df 
   dplyr::select(-c(pct_employed16_over, pct_private_coverage_alone))
 
 #Check it out 
@@ -212,6 +212,7 @@ dim(cancer.df)
 #PCA Analysis for Variable Selection
 
 *Plot is a bit messy, take subsets of the data and repeat
+
 ```{r fig.width = 10}
 
 #Scale and perform pca (take out non-continuous vars)
@@ -260,10 +261,11 @@ Here, we used PCA component analysis on the scaled continuous predictor set, pro
 
 6. For income, all median_income, binned_inc_point estimate, binned_inc_lb, and binned_ub very related. I think we should either use median_income OR binned_inc_point estimate, but retain the lb, and ub as they seem to be explained different types of variability at good magnitude.
 
-7. pct_bach_deg25_over is better than pecent_bach_deg18_24, explaining similar variability. Maybe take an average of the two or only include pct_bach_deg25_over.
+7. pct_bach_deg25_over is better than pecent_bach_deg18_24, explaining similar variability. Maybe take an average of the two or only include pct_bach_deg25_over. The target group of our research should be 18-24 or 25 and above? 
 
 8. Incidence rate has relatively small magnitude, but in a direction almost no other variable takes, so that should be kept I think.
 
 9. House hold size looks relatively unrelated
 
-10.
+
+
