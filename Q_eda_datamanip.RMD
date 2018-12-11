@@ -97,7 +97,45 @@ cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing
     avg_ann_count_pop = avg_ann_count/pop_est2015 #incorporate two vars into one (multicollinearity)
   ) %>%
   dplyr::select(-c(binned_inc, geography, study_per_cap))
+
+# Variable Manipulation: Add region classification 
+table(cancer.df$state)  
+
+# create a dataframe containing all the 4-level states names
+NE.name <- c("Connecticut","Maine","Massachusetts","New Hampshire",
+             "Rhode Island","Vermont","New Jersey","New York",
+             "Pennsylvania")
+MW.name <- c("Indiana","Illinois","Michigan","Ohio","Wisconsin",
+             "Iowa","Kansas","Minnesota","Missouri","Nebraska",
+             "North Dakota","South Dakota")
+S.name <- c("Delaware","District of Columbia","Florida","Georgia",
+            "Maryland","North Carolina","South Carolina","Virginia",
+            "West Virginia","Alabama","Kentucky","Mississippi",
+            "Tennessee","Arkansas","Louisiana","Oklahoma","Texas")
+W.name <- c("Arizona","Colorado","Idaho","New Mexico","Montana",
+            "Utah","Nevada","Wyoming","Alaska","California",
+            "Hawaii","Oregon","Washington")
+
+region.list <- list(
+  Northeast = NE.name,
+  Midwest = MW.name,
+  South = S.name,
+  West = W.name)
+
+#create new region variable identical to 'region'
+cancer.df$region <- sapply(cancer.df$state, 
+                 function(x) names(region.list)[grep(x,region.list)])     
+#relevelnumber of countries by region (original variable) 
 ```
+
+Add a variable region according toCensus Bureau-designated regions and divisions list, and we can select one significant variable for fitting the model. 
+
+Regions: 
+* `Northeast`;
+* `Midwest`;
+* `South`;
+* `West`. 
+
 
 #Imputing Values with less than 20% missing (two variables)
 
