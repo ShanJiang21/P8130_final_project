@@ -368,217 +368,217 @@ while (length(currPreds) < maxPreds) {
 f.mse.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "mse")
 ```
 
-    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop mse Value: 527.523771693046"
+    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop mse Value: 527.201084624008"
     ## [1] 27
-    ## [1] "Iteration: 2 Predictor Added: median_age_female mse Value: 283.913411908731"
+    ## [1] "Iteration: 2 Predictor Added: median_age_female mse Value: 283.134031732454"
     ## [1] 27  8
-    ## [1] "Iteration: 3 Predictor Added: region mse Value: 245.572833285577"
+    ## [1] "Iteration: 3 Predictor Added: region mse Value: 245.539023794194"
     ## [1] 27  8 29
-    ## [1] "Iteration: 4 Predictor Added: incidence_rate mse Value: 219.569372586076"
+    ## [1] "Iteration: 4 Predictor Added: incidence_rate mse Value: 219.253311188275"
     ## [1] 27  8 29  2
-    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over mse Value: 201.602229595873"
+    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over mse Value: 201.720946366206"
     ## [1] 27  8 29  2 16
-    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 mse Value: 190.858430648375"
+    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 mse Value: 190.677493465575"
     ## [1] 27  8 29  2 16 12
-    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage mse Value: 182.308423377863"
+    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage mse Value: 181.907633318535"
     ## [1] 27  8 29  2 16 12 18
-    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage mse Value: 175.364177856804"
+    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage mse Value: 174.801367936712"
     ## [1] 27  8 29  2 16 12 18 17
-    ## [1] "Iteration: 9 Predictor Added: binned_inc_point mse Value: 171.401631353793"
-    ## [1] 27  8 29  2 16 12 18 17 25
-    ## [1] "Iteration: 10 Predictor Added: imp_pct_employed16_over mse Value: 168.99339239522"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30
-    ## [1] "Iteration: 11 Predictor Added: median_age_male mse Value: 167.828947690356"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7
-    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop mse Value: 165.378704518668"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28
-    ## [1] "Iteration: 13 Predictor Added: pct_public_coverage mse Value: 165.100204709302"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19
-    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage_alone mse Value: 161.197328119379"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20
-    ## [1] "Iteration: 15 Predictor Added: pct_bach_deg25_over mse Value: 159.932982475216"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15
-    ## [1] "Iteration: 16 Predictor Added: pop_est2015 mse Value: 159.304001972714"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4
-    ## [1] "Iteration: 17 Predictor Added: pct_hs25_over mse Value: 159.1825056201"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14
-    ## [1] "Iteration: 18 Predictor Added: median_age mse Value: 159.239466989096"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6
-    ## [1] "Iteration: 19 Predictor Added: birth_rate mse Value: 159.304794295527"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23
-    ## [1] "Iteration: 20 Predictor Added: pct_white mse Value: 158.523798308085"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21
-    ## [1] "Iteration: 21 Predictor Added: pct_no_hs18_24 mse Value: 158.556729493399"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11
-    ## [1] "Iteration: 22 Predictor Added: pct_non_white mse Value: 157.14900710069"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24
-    ## [1] "Iteration: 23 Predictor Added: pct_bach_deg18_24 mse Value: 157.544268095042"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [1] "Iteration: 24 Predictor Added: study_quantile mse Value: 156.476386683662"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26
-    ## [1] "Iteration: 25 Predictor Added: avg_household_size mse Value: 157.975639592872"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26  9
-    ## [1] "Iteration: 26 Predictor Added: imp_pct_private_coverage_alone mse Value: 158.37470653468"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26  9 31
-    ## [1] "Iteration: 27 Predictor Added: med_income mse Value: 158.282113275155"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26  9 31  3
-    ## [1] "Iteration: 28 Predictor Added: poverty_percent mse Value: 156.326575981594"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26  9 31  3  5
-    ## [1] "Iteration: 29 Predictor Added: percent_married mse Value: 158.487262095979"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26  9 31  3  5 10
-    ## [1] "Iteration: 30 Predictor Added: pct_married_households mse Value: 157.127254800093"
-    ##  [1] 27  8 29  2 16 12 18 17 25 30  7 28 19 20 15  4 14  6 23 21 11 24 13
-    ## [24] 26  9 31  3  5 10 22
+    ## [1] "Iteration: 9 Predictor Added: med_income mse Value: 171.408074730024"
+    ## [1] 27  8 29  2 16 12 18 17  3
+    ## [1] "Iteration: 10 Predictor Added: median_age_male mse Value: 169.472897870424"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7
+    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over mse Value: 167.305248894531"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14
+    ## [1] "Iteration: 12 Predictor Added: birth_rate mse Value: 165.81952576949"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23
+    ## [1] "Iteration: 13 Predictor Added: imp_pct_employed16_over mse Value: 165.023261218107"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30
+    ## [1] "Iteration: 14 Predictor Added: binned_inc_point mse Value: 165.239813189615"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25
+    ## [1] "Iteration: 15 Predictor Added: avg_ann_count_pop mse Value: 163.91788857869"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28
+    ## [1] "Iteration: 16 Predictor Added: pct_public_coverage mse Value: 162.601753422772"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19
+    ## [1] "Iteration: 17 Predictor Added: pct_public_coverage_alone mse Value: 159.595643516543"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20
+    ## [1] "Iteration: 18 Predictor Added: pct_no_hs18_24 mse Value: 157.841657343695"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11
+    ## [1] "Iteration: 19 Predictor Added: percent_married mse Value: 158.799136266706"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10
+    ## [1] "Iteration: 20 Predictor Added: pct_non_white mse Value: 157.799562120022"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24
+    ## [1] "Iteration: 21 Predictor Added: median_age mse Value: 158.220477013255"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6
+    ## [1] "Iteration: 22 Predictor Added: pct_white mse Value: 157.554328690302"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21
+    ## [1] "Iteration: 23 Predictor Added: study_quantile mse Value: 158.217917972391"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [1] "Iteration: 24 Predictor Added: imp_pct_private_coverage_alone mse Value: 157.618314281077"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31
+    ## [1] "Iteration: 25 Predictor Added: pct_married_households mse Value: 156.995140308021"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31 22
+    ## [1] "Iteration: 26 Predictor Added: poverty_percent mse Value: 158.135267934409"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31 22  5
+    ## [1] "Iteration: 27 Predictor Added: pct_bach_deg25_over mse Value: 156.875992300091"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31 22  5 15
+    ## [1] "Iteration: 28 Predictor Added: avg_household_size mse Value: 156.351454326285"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31 22  5 15  9
+    ## [1] "Iteration: 29 Predictor Added: pop_est2015 mse Value: 157.282426781689"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31 22  5 15  9  4
+    ## [1] "Iteration: 30 Predictor Added: pct_bach_deg18_24 mse Value: 157.833673166326"
+    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
+    ## [24] 31 22  5 15  9  4 13
 
 ``` r
 f.aic.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "aic")
 ```
 
-    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop aic Value: 22198.577768923"
+    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop aic Value: 22198.0665961323"
     ## [1] 27
-    ## [1] "Iteration: 2 Predictor Added: median_age_female aic Value: 20684.7118745539"
+    ## [1] "Iteration: 2 Predictor Added: median_age_female aic Value: 20685.562875775"
     ## [1] 27  8
-    ## [1] "Iteration: 3 Predictor Added: region aic Value: 20329.0753261754"
+    ## [1] "Iteration: 3 Predictor Added: region aic Value: 20329.1294859874"
     ## [1] 27  8 29
-    ## [1] "Iteration: 4 Predictor Added: incidence_rate aic Value: 20039.0655549637"
+    ## [1] "Iteration: 4 Predictor Added: incidence_rate aic Value: 20038.275799709"
     ## [1] 27  8 29  2
-    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over aic Value: 19846.4457237078"
+    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over aic Value: 19847.2343075774"
     ## [1] 27  8 29  2 16
-    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 aic Value: 19701.2223580541"
+    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 aic Value: 19699.7096717552"
     ## [1] 27  8 29  2 16 12
-    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage aic Value: 19593.2035958047"
+    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage aic Value: 19593.2167028779"
     ## [1] 27  8 29  2 16 12 18
-    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage aic Value: 19495.2927331656"
+    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage aic Value: 19495.3367374229"
     ## [1] 27  8 29  2 16 12 18 17
-    ## [1] "Iteration: 9 Predictor Added: binned_inc_point aic Value: 19445.4490956154"
+    ## [1] "Iteration: 9 Predictor Added: binned_inc_point aic Value: 19445.2937552483"
     ## [1] 27  8 29  2 16 12 18 17 25
-    ## [1] "Iteration: 10 Predictor Added: median_age_male aic Value: 19407.9108612638"
+    ## [1] "Iteration: 10 Predictor Added: median_age_male aic Value: 19407.362081686"
     ##  [1] 27  8 29  2 16 12 18 17 25  7
-    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over aic Value: 19374.3504017102"
+    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over aic Value: 19375.9620050532"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14
-    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop aic Value: 19349.6890966135"
+    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop aic Value: 19352.165709638"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28
-    ## [1] "Iteration: 13 Predictor Added: birth_rate aic Value: 19341.724037573"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23
-    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage aic Value: 19330.8571239702"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19
-    ## [1] "Iteration: 15 Predictor Added: pct_public_coverage_alone aic Value: 19285.4959550873"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20
-    ## [1] "Iteration: 16 Predictor Added: imp_pct_employed16_over aic Value: 19256.3512263244"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30
-    ## [1] "Iteration: 17 Predictor Added: med_income aic Value: 19252.8594561208"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3
-    ## [1] "Iteration: 18 Predictor Added: pct_married_households aic Value: 19249.922424503"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22
-    ## [1] "Iteration: 19 Predictor Added: percent_married aic Value: 19245.4596571508"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10
-    ## [1] "Iteration: 20 Predictor Added: pct_bach_deg25_over aic Value: 19240.9886575628"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15
-    ## [1] "Iteration: 21 Predictor Added: pct_non_white aic Value: 19237.157526638"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24
-    ## [1] "Iteration: 22 Predictor Added: pct_white aic Value: 19215.6733924678"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21
-    ## [1] "Iteration: 23 Predictor Added: imp_pct_private_coverage_alone aic Value: 19215.4987876473"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [1] "Iteration: 24 Predictor Added: pop_est2015 aic Value: 19214.1559147663"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4
-    ## [1] "Iteration: 25 Predictor Added: pct_no_hs18_24 aic Value: 19214.3999730104"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4 11
-    ## [1] "Iteration: 26 Predictor Added: avg_household_size aic Value: 19213.0641520379"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4 11  9
-    ## [1] "Iteration: 27 Predictor Added: median_age aic Value: 19215.4711665937"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4 11  9  6
-    ## [1] "Iteration: 28 Predictor Added: poverty_percent aic Value: 19217.0625214906"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4 11  9  6  5
-    ## [1] "Iteration: 29 Predictor Added: study_quantile aic Value: 19219.8486477831"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4 11  9  6  5 26
-    ## [1] "Iteration: 30 Predictor Added: pct_bach_deg18_24 aic Value: 19221.0180419102"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 23 19 20 30  3 22 10 15 24 21 31
-    ## [24]  4 11  9  6  5 26 13
+    ## [1] "Iteration: 13 Predictor Added: imp_pct_employed16_over aic Value: 19340.3205951832"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30
+    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage aic Value: 19323.8475416097"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19
+    ## [1] "Iteration: 15 Predictor Added: pct_public_coverage_alone aic Value: 19260.7790885018"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20
+    ## [1] "Iteration: 16 Predictor Added: birth_rate aic Value: 19258.5144183834"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23
+    ## [1] "Iteration: 17 Predictor Added: pct_no_hs18_24 aic Value: 19253.5821378879"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11
+    ## [1] "Iteration: 18 Predictor Added: pct_white aic Value: 19249.085781093"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21
+    ## [1] "Iteration: 19 Predictor Added: pct_non_white aic Value: 19229.6313596791"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24
+    ## [1] "Iteration: 20 Predictor Added: imp_pct_private_coverage_alone aic Value: 19229.2999454003"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31
+    ## [1] "Iteration: 21 Predictor Added: pct_bach_deg25_over aic Value: 19218.8982259711"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15
+    ## [1] "Iteration: 22 Predictor Added: percent_married aic Value: 19219.4704951273"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10
+    ## [1] "Iteration: 23 Predictor Added: pct_married_households aic Value: 19214.4479600622"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [1] "Iteration: 24 Predictor Added: med_income aic Value: 19214.472081216"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3
+    ## [1] "Iteration: 25 Predictor Added: poverty_percent aic Value: 19214.4406206458"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3  5
+    ## [1] "Iteration: 26 Predictor Added: pop_est2015 aic Value: 19215.7775372961"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3  5  4
+    ## [1] "Iteration: 27 Predictor Added: avg_household_size aic Value: 19214.3646431728"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3  5  4  9
+    ## [1] "Iteration: 28 Predictor Added: median_age aic Value: 19215.3903954357"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3  5  4  9  6
+    ## [1] "Iteration: 29 Predictor Added: pct_bach_deg18_24 aic Value: 19220.2931516095"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3  5  4  9  6 13
+    ## [1] "Iteration: 30 Predictor Added: study_quantile aic Value: 19223.382583638"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
+    ## [24]  3  5  4  9  6 13 26
 
 ``` r
 f.bic.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "bic")
 ```
 
-    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop bic Value: 22215.7812388594"
+    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop bic Value: 22215.6924870038"
     ## [1] 27
-    ## [1] "Iteration: 2 Predictor Added: median_age_female bic Value: 20707.3858163651"
+    ## [1] "Iteration: 2 Predictor Added: median_age_female bic Value: 20708.093178362"
     ## [1] 27  8
-    ## [1] "Iteration: 3 Predictor Added: region bic Value: 20369.8392116074"
+    ## [1] "Iteration: 3 Predictor Added: region bic Value: 20369.2060743918"
     ## [1] 27  8 29
-    ## [1] "Iteration: 4 Predictor Added: incidence_rate bic Value: 20084.8633267387"
+    ## [1] "Iteration: 4 Predictor Added: incidence_rate bic Value: 20083.0314886465"
     ## [1] 27  8 29  2
-    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over bic Value: 19899.1008415214"
+    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over bic Value: 19898.9019304875"
     ## [1] 27  8 29  2 16
-    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 bic Value: 19757.2428232679"
+    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 bic Value: 19758.3749159052"
     ## [1] 27  8 29  2 16 12
-    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage bic Value: 19658.9308460678"
+    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage bic Value: 19658.4800616342"
     ## [1] 27  8 29  2 16 12 18
-    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage bic Value: 19566.460845929"
+    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage bic Value: 19565.1958078345"
     ## [1] 27  8 29  2 16 12 18 17
-    ## [1] "Iteration: 9 Predictor Added: binned_inc_point bic Value: 19521.0643521484"
+    ## [1] "Iteration: 9 Predictor Added: binned_inc_point bic Value: 19521.1148133499"
     ## [1] 27  8 29  2 16 12 18 17 25
-    ## [1] "Iteration: 10 Predictor Added: median_age_male bic Value: 19488.0563232565"
+    ## [1] "Iteration: 10 Predictor Added: median_age_male bic Value: 19489.3976286466"
     ##  [1] 27  8 29  2 16 12 18 17 25  7
-    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over bic Value: 19462.0655384723"
+    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over bic Value: 19463.8343553084"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14
-    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop bic Value: 19443.0946109115"
+    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop bic Value: 19443.5191354375"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28
-    ## [1] "Iteration: 13 Predictor Added: pct_public_coverage bic Value: 19439.1345494881"
+    ## [1] "Iteration: 13 Predictor Added: pct_public_coverage bic Value: 19438.8015052106"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19
-    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage_alone bic Value: 19399.1696556066"
+    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage_alone bic Value: 19398.8995450565"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20
-    ## [1] "Iteration: 15 Predictor Added: imp_pct_employed16_over bic Value: 19372.6317324488"
+    ## [1] "Iteration: 15 Predictor Added: imp_pct_employed16_over bic Value: 19373.5711110448"
     ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30
-    ## [1] "Iteration: 16 Predictor Added: birth_rate bic Value: 19373.1328609423"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23
-    ## [1] "Iteration: 17 Predictor Added: med_income bic Value: 19374.1258920253"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3
-    ## [1] "Iteration: 18 Predictor Added: percent_married bic Value: 19377.0629132877"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10
-    ## [1] "Iteration: 19 Predictor Added: pct_bach_deg25_over bic Value: 19376.5790210208"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15
-    ## [1] "Iteration: 20 Predictor Added: pct_non_white bic Value: 19377.6668721337"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24
-    ## [1] "Iteration: 21 Predictor Added: pct_white bic Value: 19363.3909421487"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21
-    ## [1] "Iteration: 22 Predictor Added: imp_pct_private_coverage_alone bic Value: 19364.4818743623"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31
-    ## [1] "Iteration: 23 Predictor Added: poverty_percent bic Value: 19370.7252403341"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [1] "Iteration: 24 Predictor Added: pct_married_households bic Value: 19378.7367733547"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22
-    ## [1] "Iteration: 25 Predictor Added: pct_bach_deg18_24 bic Value: 19384.278932249"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22 13
-    ## [1] "Iteration: 26 Predictor Added: pop_est2015 bic Value: 19390.3542049477"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22 13  4
-    ## [1] "Iteration: 27 Predictor Added: pct_no_hs18_24 bic Value: 19396.8500186394"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22 13  4 11
-    ## [1] "Iteration: 28 Predictor Added: median_age bic Value: 19405.0444397584"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22 13  4 11  6
-    ## [1] "Iteration: 29 Predictor Added: avg_household_size bic Value: 19411.865161192"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22 13  4 11  6  9
-    ## [1] "Iteration: 30 Predictor Added: study_quantile bic Value: 19438.5603218607"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 23  3 10 15 24 21 31  5
-    ## [24] 22 13  4 11  6  9 26
+    ## [1] "Iteration: 16 Predictor Added: percent_married bic Value: 19373.4190119482"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10
+    ## [1] "Iteration: 17 Predictor Added: med_income bic Value: 19374.0015684681"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3
+    ## [1] "Iteration: 18 Predictor Added: birth_rate bic Value: 19374.0988058861"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23
+    ## [1] "Iteration: 19 Predictor Added: pct_bach_deg25_over bic Value: 19376.938381301"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15
+    ## [1] "Iteration: 20 Predictor Added: imp_pct_private_coverage_alone bic Value: 19378.2259326285"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31
+    ## [1] "Iteration: 21 Predictor Added: pct_non_white bic Value: 19380.9522301402"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24
+    ## [1] "Iteration: 22 Predictor Added: pct_white bic Value: 19367.6702979492"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21
+    ## [1] "Iteration: 23 Predictor Added: pct_married_households bic Value: 19371.5415153228"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [1] "Iteration: 24 Predictor Added: pct_no_hs18_24 bic Value: 19376.0397885302"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11
+    ## [1] "Iteration: 25 Predictor Added: pop_est2015 bic Value: 19381.5375177601"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11  4
+    ## [1] "Iteration: 26 Predictor Added: avg_household_size bic Value: 19388.0113412524"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11  4  9
+    ## [1] "Iteration: 27 Predictor Added: pct_bach_deg18_24 bic Value: 19395.1216529696"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11  4  9 13
+    ## [1] "Iteration: 28 Predictor Added: poverty_percent bic Value: 19405.4974217502"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11  4  9 13  5
+    ## [1] "Iteration: 29 Predictor Added: median_age bic Value: 19413.2380662472"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11  4  9 13  5  6
+    ## [1] "Iteration: 30 Predictor Added: study_quantile bic Value: 19437.1345318261"
+    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
+    ## [24] 11  4  9 13  5  6 26
 
 ``` r
 #Show the 'best' final selection with minimal MSE (takes in a list object from the previous function, with criterion (MSE/AIC))
@@ -594,57 +594,58 @@ print(names(cancer.df[,c(lm.fs.preds)]))
 present.fs.result(f.mse.list, "MSE")
 ```
 
-    ## [1] "The best predictor set of 28 predictors, out of a max of 30, (MSE = 156.327)"
+    ## [1] "The best predictor set of 28 predictors, out of a max of 30, (MSE = 156.351)"
     ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
     ##  [3] "region"                         "incidence_rate"                
     ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
     ##  [7] "pct_emp_priv_coverage"          "pct_private_coverage"          
-    ##  [9] "binned_inc_point"               "imp_pct_employed16_over"       
-    ## [11] "median_age_male"                "avg_ann_count_pop"             
-    ## [13] "pct_public_coverage"            "pct_public_coverage_alone"     
-    ## [15] "pct_bach_deg25_over"            "pop_est2015"                   
-    ## [17] "pct_hs25_over"                  "median_age"                    
-    ## [19] "birth_rate"                     "pct_white"                     
-    ## [21] "pct_no_hs18_24"                 "pct_non_white"                 
-    ## [23] "pct_bach_deg18_24"              "study_quantile"                
-    ## [25] "avg_household_size"             "imp_pct_private_coverage_alone"
-    ## [27] "med_income"                     "poverty_percent"
+    ##  [9] "med_income"                     "median_age_male"               
+    ## [11] "pct_hs25_over"                  "birth_rate"                    
+    ## [13] "imp_pct_employed16_over"        "binned_inc_point"              
+    ## [15] "avg_ann_count_pop"              "pct_public_coverage"           
+    ## [17] "pct_public_coverage_alone"      "pct_no_hs18_24"                
+    ## [19] "percent_married"                "pct_non_white"                 
+    ## [21] "median_age"                     "pct_white"                     
+    ## [23] "study_quantile"                 "imp_pct_private_coverage_alone"
+    ## [25] "pct_married_households"         "poverty_percent"               
+    ## [27] "pct_bach_deg25_over"            "avg_household_size"
 
 ``` r
 present.fs.result(f.aic.list, "AIC")
 ```
 
-    ## [1] "The best predictor set of 26 predictors, out of a max of 30, (AIC = 19213.064)"
+    ## [1] "The best predictor set of 27 predictors, out of a max of 30, (AIC = 19214.365)"
     ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
     ##  [3] "region"                         "incidence_rate"                
     ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
     ##  [7] "pct_emp_priv_coverage"          "pct_private_coverage"          
     ##  [9] "binned_inc_point"               "median_age_male"               
     ## [11] "pct_hs25_over"                  "avg_ann_count_pop"             
-    ## [13] "birth_rate"                     "pct_public_coverage"           
-    ## [15] "pct_public_coverage_alone"      "imp_pct_employed16_over"       
-    ## [17] "med_income"                     "pct_married_households"        
-    ## [19] "percent_married"                "pct_bach_deg25_over"           
-    ## [21] "pct_non_white"                  "pct_white"                     
-    ## [23] "imp_pct_private_coverage_alone" "pop_est2015"                   
-    ## [25] "pct_no_hs18_24"                 "avg_household_size"
+    ## [13] "imp_pct_employed16_over"        "pct_public_coverage"           
+    ## [15] "pct_public_coverage_alone"      "birth_rate"                    
+    ## [17] "pct_no_hs18_24"                 "pct_white"                     
+    ## [19] "pct_non_white"                  "imp_pct_private_coverage_alone"
+    ## [21] "pct_bach_deg25_over"            "percent_married"               
+    ## [23] "pct_married_households"         "med_income"                    
+    ## [25] "poverty_percent"                "pop_est2015"                   
+    ## [27] "avg_household_size"
 
 ``` r
 present.fs.result(f.bic.list, "BIC")
 ```
 
-    ## [1] "The best predictor set of 21 predictors, out of a max of 30, (BIC = 19363.391)"
-    ##  [1] "avg_deaths_yr_pop"         "median_age_female"        
-    ##  [3] "region"                    "incidence_rate"           
-    ##  [5] "pct_unemployed16_over"     "pct_hs18_24"              
-    ##  [7] "pct_emp_priv_coverage"     "pct_private_coverage"     
-    ##  [9] "binned_inc_point"          "median_age_male"          
-    ## [11] "pct_hs25_over"             "avg_ann_count_pop"        
-    ## [13] "pct_public_coverage"       "pct_public_coverage_alone"
-    ## [15] "imp_pct_employed16_over"   "birth_rate"               
-    ## [17] "med_income"                "percent_married"          
-    ## [19] "pct_bach_deg25_over"       "pct_non_white"            
-    ## [21] "pct_white"
+    ## [1] "The best predictor set of 22 predictors, out of a max of 30, (BIC = 19367.67)"
+    ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
+    ##  [3] "region"                         "incidence_rate"                
+    ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
+    ##  [7] "pct_emp_priv_coverage"          "pct_private_coverage"          
+    ##  [9] "binned_inc_point"               "median_age_male"               
+    ## [11] "pct_hs25_over"                  "avg_ann_count_pop"             
+    ## [13] "pct_public_coverage"            "pct_public_coverage_alone"     
+    ## [15] "imp_pct_employed16_over"        "percent_married"               
+    ## [17] "med_income"                     "birth_rate"                    
+    ## [19] "pct_bach_deg25_over"            "imp_pct_private_coverage_alone"
+    ## [21] "pct_non_white"                  "pct_white"
 
 ``` r
 #Pull the indices for the selected models, for later comparison
@@ -774,159 +775,159 @@ while (length(currPreds) >= minPreds) {
 b.mse.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "mse")
 ```
 
-    ## [1] "Predictor Removed: poverty_percent  mse Value: 157.45303185285"
-    ##  [1]  2  3  4  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
+    ## [1] "Predictor Removed: pct_hs18_24  mse Value: 156.510549536378"
+    ##  [1]  2  3  4  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25
     ## [24] 26 27 28 29 30 31
-    ## [1] "Predictor Removed: med_income  mse Value: 157.494008305368"
-    ##  [1]  2  4  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+    ## [1] "Predictor Removed: pop_est2015  mse Value: 160.582069152264"
+    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26
     ## [24] 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_hs18_24  mse Value: 156.814261775016"
-    ##  [1]  2  4  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27
+    ## [1] "Predictor Removed: birth_rate  mse Value: 160.87420385811"
+    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 27
     ## [24] 28 29 30 31
-    ## [1] "Predictor Removed: avg_ann_count_pop  mse Value: 160.857532659792"
-    ##  [1]  2  4  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27
-    ## [24] 29 30 31
-    ## [1] "Predictor Removed: median_age  mse Value: 162.557356583479"
-    ##  [1]  2  4  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 29
+    ## [1] "Predictor Removed: region  mse Value: 160.697812030531"
+    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 27
+    ## [24] 28 30 31
+    ## [1] "Predictor Removed: avg_deaths_yr_pop  mse Value: 170.809987875359"
+    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 28
     ## [24] 30 31
-    ## [1] "Predictor Removed: median_age_female  mse Value: 161.777546528931"
-    ##  [1]  2  4  7  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 29 30
+    ## [1] "Predictor Removed: pct_bach_deg18_24  mse Value: 393.036660068404"
+    ##  [1]  2  3  5  6  7  8  9 10 11 14 15 16 17 18 19 20 21 22 24 25 26 28 30
     ## [24] 31
-    ## [1] "Predictor Removed: study_quantile  mse Value: 173.395137893403"
-    ##  [1]  2  4  7  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 27 29 30 31
-    ## [1] "Predictor Removed: incidence_rate  mse Value: 173.483058682842"
-    ##  [1]  4  7  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 27 29 30 31
-    ## [1] "Predictor Removed: region  mse Value: 192.753549659429"
-    ##  [1]  4  7  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 27 30 31
-    ## [1] "Predictor Removed: pct_bach_deg25_over  mse Value: 205.824157723506"
-    ##  [1]  4  7  9 10 11 13 14 16 17 18 19 20 21 22 23 24 25 27 30 31
-    ## [1] "Predictor Removed: pct_married_households  mse Value: 206.956705221623"
-    ##  [1]  4  7  9 10 11 13 14 16 17 18 19 20 21 23 24 25 27 30 31
-    ## [1] "Predictor Removed: birth_rate  mse Value: 207.483369823002"
-    ##  [1]  4  7  9 10 11 13 14 16 17 18 19 20 21 24 25 27 30 31
-    ## [1] "Predictor Removed: binned_inc_point  mse Value: 208.003177578232"
-    ##  [1]  4  7  9 10 11 13 14 16 17 18 19 20 21 24 27 30 31
-    ## [1] "Predictor Removed: imp_pct_private_coverage_alone  mse Value: 211.718890728768"
-    ##  [1]  4  7  9 10 11 13 14 16 17 18 19 20 21 24 27 30
-    ## [1] "Predictor Removed: pct_white  mse Value: 211.002797669934"
-    ##  [1]  4  7  9 10 11 13 14 16 17 18 19 20 24 27 30
-    ## [1] "Predictor Removed: pct_unemployed16_over  mse Value: 213.702345139841"
-    ##  [1]  4  7  9 10 11 13 14 17 18 19 20 24 27 30
-    ## [1] "Predictor Removed: pop_est2015  mse Value: 226.059213007618"
-    ##  [1]  7  9 10 11 13 14 17 18 19 20 24 27 30
-    ## [1] "Predictor Removed: imp_pct_employed16_over  mse Value: 225.780718381929"
-    ##  [1]  7  9 10 11 13 14 17 18 19 20 24 27
-    ## [1] "Predictor Removed: pct_hs25_over  mse Value: 235.449892873154"
-    ##  [1]  7  9 10 11 13 17 18 19 20 24 27
-    ## [1] "Predictor Removed: avg_deaths_yr_pop  mse Value: 238.002329336616"
-    ##  [1]  7  9 10 11 13 17 18 19 20 24
-    ## [1] "Predictor Removed: pct_public_coverage_alone  mse Value: 577.115650003312"
-    ## [1]  7  9 10 11 13 17 18 19 24
+    ## [1] "Predictor Removed: pct_married_households  mse Value: 392.218901498869"
+    ##  [1]  2  3  5  6  7  8  9 10 11 14 15 16 17 18 19 20 21 24 25 26 28 30 31
+    ## [1] "Predictor Removed: pct_hs25_over  mse Value: 400.998164009748"
+    ##  [1]  2  3  5  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
+    ## [1] "Predictor Removed: poverty_percent  mse Value: 404.501487076802"
+    ##  [1]  2  3  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
+    ## [1] "Predictor Removed: incidence_rate  mse Value: 407.315699186772"
+    ##  [1]  3  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
+    ## [1] "Predictor Removed: med_income  mse Value: 522.305761053873"
+    ##  [1]  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
+    ## [1] "Predictor Removed: binned_inc_point  mse Value: 522.228919645621"
+    ##  [1]  6  7  8  9 10 11 15 16 17 18 19 20 21 24 26 28 30 31
+    ## [1] "Predictor Removed: pct_emp_priv_coverage  mse Value: 523.570352541506"
+    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 24 26 28 30 31
+    ## [1] "Predictor Removed: pct_non_white  mse Value: 526.063952491177"
+    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 26 28 30 31
+    ## [1] "Predictor Removed: imp_pct_private_coverage_alone  mse Value: 527.901017533572"
+    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 26 28 30
+    ## [1] "Predictor Removed: study_quantile  mse Value: 527.610358496482"
+    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 28 30
+    ## [1] "Predictor Removed: avg_ann_count_pop  mse Value: 529.119923914449"
+    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 30
+    ## [1] "Predictor Removed: pct_private_coverage  mse Value: 528.266530944576"
+    ##  [1]  6  7  8  9 10 11 15 16 19 20 21 30
+    ## [1] "Predictor Removed: imp_pct_employed16_over  mse Value: 530.33261595019"
+    ##  [1]  6  7  8  9 10 11 15 16 19 20 21
+    ## [1] "Predictor Removed: pct_unemployed16_over  mse Value: 530.067214373376"
+    ##  [1]  6  7  8  9 10 11 15 19 20 21
+    ## [1] "Predictor Removed: percent_married  mse Value: 533.979260372647"
+    ## [1]  6  7  8  9 11 15 19 20 21
 
 ``` r
 b.aic.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "aic")
 ```
 
-    ## [1] "Predictor Removed: pct_hs18_24  aic Value: 19219.766282733"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25
+    ## [1] "Predictor Removed: median_age_female  aic Value: 19218.1436235805"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
     ## [24] 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age_female  aic Value: 19276.7980419435"
-    ##  [1]  2  3  4  5  6  7  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+    ## [1] "Predictor Removed: pct_non_white  aic Value: 19400.2744619511"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 25 26
     ## [24] 27 28 29 30 31
-    ## [1] "Predictor Removed: region  aic Value: 19441.234927108"
-    ##  [1]  2  3  4  5  6  7  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26
-    ## [24] 27 28 30 31
-    ## [1] "Predictor Removed: birth_rate  aic Value: 19569.688098581"
-    ##  [1]  2  3  4  5  6  7  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 27
-    ## [24] 28 30 31
-    ## [1] "Predictor Removed: pct_married_households  aic Value: 19578.768115001"
-    ##  [1]  2  3  4  5  6  7  9 10 11 13 14 15 16 17 18 19 20 21 24 25 26 27 28
+    ## [1] "Predictor Removed: birth_rate  aic Value: 19442.6923128896"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 22 25 26 27
+    ## [24] 28 29 30 31
+    ## [1] "Predictor Removed: pct_married_households  aic Value: 19447.0328239301"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 25 26 27 28
+    ## [24] 29 30 31
+    ## [1] "Predictor Removed: pct_white  aic Value: 19447.673375308"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 25 26 27 28 29
     ## [24] 30 31
-    ## [1] "Predictor Removed: poverty_percent  aic Value: 19580.56868686"
-    ##  [1]  2  3  4  6  7  9 10 11 13 14 15 16 17 18 19 20 21 24 25 26 27 28 30
+    ## [1] "Predictor Removed: pct_public_coverage_alone  aic Value: 19448.1008445165"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 25 26 27 28 29 30
     ## [24] 31
-    ## [1] "Predictor Removed: median_age_male  aic Value: 19581.2602693386"
-    ##  [1]  2  3  4  6  9 10 11 13 14 15 16 17 18 19 20 21 24 25 26 27 28 30 31
-    ## [1] "Predictor Removed: avg_deaths_yr_pop  aic Value: 19880.2423010805"
-    ##  [1]  2  3  4  6  9 10 11 13 14 15 16 17 18 19 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_public_coverage  aic Value: 21508.6945446298"
-    ##  [1]  2  3  4  6  9 10 11 13 14 15 16 17 18 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_emp_priv_coverage  aic Value: 21509.0342159651"
-    ##  [1]  2  3  4  6  9 10 11 13 14 15 16 17 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_private_coverage  aic Value: 21524.406965026"
-    ##  [1]  2  3  4  6  9 10 11 13 14 15 16 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_unemployed16_over  aic Value: 21547.6190356092"
-    ##  [1]  2  3  4  6  9 10 11 13 14 15 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_bach_deg25_over  aic Value: 21556.7602136732"
-    ##  [1]  2  3  4  6  9 10 11 13 14 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_hs25_over  aic Value: 21597.0067539612"
-    ##  [1]  2  3  4  6  9 10 11 13 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_public_coverage_alone  aic Value: 21741.8467299832"
-    ##  [1]  2  3  4  6  9 10 11 13 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pop_est2015  aic Value: 21794.8820519252"
-    ##  [1]  2  3  6  9 10 11 13 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: percent_married  aic Value: 21799.4083109107"
-    ##  [1]  2  3  6  9 11 13 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: avg_household_size  aic Value: 21797.2361429854"
-    ##  [1]  2  3  6 11 13 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: med_income  aic Value: 21800.3914871731"
-    ##  [1]  2  6 11 13 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: incidence_rate  aic Value: 21836.0581108446"
-    ##  [1]  6 11 13 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: imp_pct_private_coverage_alone  aic Value: 22562.4800796328"
-    ## [1]  6 11 13 21 24 25 26 28 30
+    ## [1] "Predictor Removed: pct_public_coverage  aic Value: 19540.5810837299"
+    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 25 26 27 28 29 30 31
+    ## [1] "Predictor Removed: poverty_percent  aic Value: 19584.9304263121"
+    ##  [1]  2  3  4  6  7  9 10 11 12 13 14 15 16 17 18 25 26 27 28 29 30 31
+    ## [1] "Predictor Removed: pct_private_coverage  aic Value: 19586.523965909"
+    ##  [1]  2  3  4  6  7  9 10 11 12 13 14 15 16 18 25 26 27 28 29 30 31
+    ## [1] "Predictor Removed: med_income  aic Value: 19707.8198909186"
+    ##  [1]  2  4  6  7  9 10 11 12 13 14 15 16 18 25 26 27 28 29 30 31
+    ## [1] "Predictor Removed: avg_ann_count_pop  aic Value: 19710.555318383"
+    ##  [1]  2  4  6  7  9 10 11 12 13 14 15 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: pct_bach_deg25_over  aic Value: 19737.1060689487"
+    ##  [1]  2  4  6  7  9 10 11 12 13 14 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: pct_hs25_over  aic Value: 19744.5078197841"
+    ##  [1]  2  4  6  7  9 10 11 12 13 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: avg_household_size  aic Value: 19785.2507579338"
+    ##  [1]  2  4  6  7 10 11 12 13 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: incidence_rate  aic Value: 19802.6772908846"
+    ##  [1]  4  6  7 10 11 12 13 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: pct_no_hs18_24  aic Value: 20039.4361353389"
+    ##  [1]  4  6  7 10 12 13 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: percent_married  aic Value: 20046.0840875758"
+    ##  [1]  4  6  7 12 13 16 18 25 26 27 29 30 31
+    ## [1] "Predictor Removed: binned_inc_point  aic Value: 20058.2524634261"
+    ##  [1]  4  6  7 12 13 16 18 26 27 29 30 31
+    ## [1] "Predictor Removed: region  aic Value: 20079.9709755665"
+    ##  [1]  4  6  7 12 13 16 18 26 27 30 31
+    ## [1] "Predictor Removed: study_quantile  aic Value: 20291.5309272779"
+    ##  [1]  4  6  7 12 13 16 18 27 30 31
+    ## [1] "Predictor Removed: pct_unemployed16_over  aic Value: 20293.5864721778"
+    ## [1]  4  6  7 12 13 18 27 30 31
 
 ``` r
 b.bic.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "bic")
 ```
 
-    ## [1] "Predictor Removed: binned_inc_point  bic Value: 19412.885836784"
+    ## [1] "Predictor Removed: binned_inc_point  bic Value: 19414.0049284942"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
     ## [24] 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_non_white  bic Value: 19414.2473081768"
+    ## [1] "Predictor Removed: pct_non_white  bic Value: 19415.5005436614"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 26
     ## [24] 27 28 29 30 31
-    ## [1] "Predictor Removed: birth_rate  bic Value: 19431.3138373925"
+    ## [1] "Predictor Removed: birth_rate  bic Value: 19431.249868587"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 26 27
     ## [24] 28 29 30 31
-    ## [1] "Predictor Removed: pct_married_households  bic Value: 19432.7447263124"
+    ## [1] "Predictor Removed: pct_married_households  bic Value: 19431.4261597884"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 26 27 28
     ## [24] 29 30 31
-    ## [1] "Predictor Removed: pct_white  bic Value: 19428.8929041366"
+    ## [1] "Predictor Removed: pct_white  bic Value: 19427.2636776421"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 26 27 28 29
     ## [24] 30 31
-    ## [1] "Predictor Removed: pct_public_coverage_alone  bic Value: 19421.6220913031"
+    ## [1] "Predictor Removed: pct_public_coverage_alone  bic Value: 19418.9311468416"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 26 27 28 29 30
     ## [24] 31
-    ## [1] "Predictor Removed: pct_public_coverage  bic Value: 19471.8790579551"
+    ## [1] "Predictor Removed: pct_public_coverage  bic Value: 19472.9980968485"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_emp_priv_coverage  bic Value: 19481.2365768914"
+    ## [1] "Predictor Removed: pct_emp_priv_coverage  bic Value: 19479.3699366376"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_private_coverage  bic Value: 19562.2816565449"
+    ## [1] "Predictor Removed: pct_private_coverage  bic Value: 19560.6068820597"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_unemployed16_over  bic Value: 19570.46268428"
+    ## [1] "Predictor Removed: pct_unemployed16_over  bic Value: 19569.3689860388"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_bach_deg25_over  bic Value: 19661.5528187779"
+    ## [1] "Predictor Removed: pct_bach_deg25_over  bic Value: 19662.7449967179"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_hs25_over  bic Value: 19671.7470607811"
+    ## [1] "Predictor Removed: pct_hs25_over  bic Value: 19672.0180828374"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_bach_deg18_24  bic Value: 19715.0924698326"
+    ## [1] "Predictor Removed: pct_bach_deg18_24  bic Value: 19715.8489870154"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 12 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_hs18_24  bic Value: 19710.1733377705"
+    ## [1] "Predictor Removed: pct_hs18_24  bic Value: 19711.957289576"
     ##  [1]  2  3  4  5  6  7  8  9 10 11 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_no_hs18_24  bic Value: 19886.4286099321"
+    ## [1] "Predictor Removed: pct_no_hs18_24  bic Value: 19884.3260589498"
     ##  [1]  2  3  4  5  6  7  8  9 10 26 27 28 29 30 31
-    ## [1] "Predictor Removed: percent_married  bic Value: 19889.3298770799"
+    ## [1] "Predictor Removed: percent_married  bic Value: 19888.3486152471"
     ##  [1]  2  3  4  5  6  7  8  9 26 27 28 29 30 31
-    ## [1] "Predictor Removed: avg_household_size  bic Value: 19885.113967523"
+    ## [1] "Predictor Removed: avg_household_size  bic Value: 19886.7383101254"
     ##  [1]  2  3  4  5  6  7  8 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age_female  bic Value: 19894.6232667941"
+    ## [1] "Predictor Removed: median_age_female  bic Value: 19893.1452759665"
     ##  [1]  2  3  4  5  6  7 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age_male  bic Value: 20199.8899543784"
+    ## [1] "Predictor Removed: median_age_male  bic Value: 20199.9957457598"
     ##  [1]  2  3  4  5  6 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age  bic Value: 21022.4075894434"
+    ## [1] "Predictor Removed: median_age  bic Value: 21023.8218111644"
     ##  [1]  2  3  4  5 26 27 28 29 30 31
-    ## [1] "Predictor Removed: poverty_percent  bic Value: 21019.224032768"
+    ## [1] "Predictor Removed: poverty_percent  bic Value: 21017.9128240713"
     ## [1]  2  3  4 26 27 28 29 30 31
 
 ``` r
@@ -943,28 +944,7 @@ names(cancer.df[,c(lm.bs.preds)])
 present.bs.result(b.mse.list, "MSE")
 ```
 
-    ## [1] "The best predictor set of 27 predictors, out of a max of 31, (MSE = 156.814)"
-
-    ##  [1] "incidence_rate"                 "pop_est2015"                   
-    ##  [3] "median_age"                     "median_age_male"               
-    ##  [5] "median_age_female"              "avg_household_size"            
-    ##  [7] "percent_married"                "pct_no_hs18_24"                
-    ##  [9] "pct_bach_deg18_24"              "pct_hs25_over"                 
-    ## [11] "pct_bach_deg25_over"            "pct_unemployed16_over"         
-    ## [13] "pct_private_coverage"           "pct_emp_priv_coverage"         
-    ## [15] "pct_public_coverage"            "pct_public_coverage_alone"     
-    ## [17] "pct_white"                      "pct_married_households"        
-    ## [19] "birth_rate"                     "pct_non_white"                 
-    ## [21] "binned_inc_point"               "study_quantile"                
-    ## [23] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
-    ## [25] "region"                         "imp_pct_employed16_over"       
-    ## [27] "imp_pct_private_coverage_alone"
-
-``` r
-present.bs.result(b.aic.list, "AIC")
-```
-
-    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (AIC = 19219.766)"
+    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (MSE = 156.511)"
 
     ##  [1] "incidence_rate"                 "med_income"                    
     ##  [3] "pop_est2015"                    "poverty_percent"               
@@ -983,10 +963,32 @@ present.bs.result(b.aic.list, "AIC")
     ## [29] "imp_pct_private_coverage_alone"
 
 ``` r
+present.bs.result(b.aic.list, "AIC")
+```
+
+    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (AIC = 19218.144)"
+
+    ##  [1] "incidence_rate"                 "med_income"                    
+    ##  [3] "pop_est2015"                    "poverty_percent"               
+    ##  [5] "median_age"                     "median_age_male"               
+    ##  [7] "avg_household_size"             "percent_married"               
+    ##  [9] "pct_no_hs18_24"                 "pct_hs18_24"                   
+    ## [11] "pct_bach_deg18_24"              "pct_hs25_over"                 
+    ## [13] "pct_bach_deg25_over"            "pct_unemployed16_over"         
+    ## [15] "pct_private_coverage"           "pct_emp_priv_coverage"         
+    ## [17] "pct_public_coverage"            "pct_public_coverage_alone"     
+    ## [19] "pct_white"                      "pct_married_households"        
+    ## [21] "birth_rate"                     "pct_non_white"                 
+    ## [23] "binned_inc_point"               "study_quantile"                
+    ## [25] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
+    ## [27] "region"                         "imp_pct_employed16_over"       
+    ## [29] "imp_pct_private_coverage_alone"
+
+``` r
 present.bs.result(b.bic.list, "BIC")
 ```
 
-    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (BIC = 19412.886)"
+    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (BIC = 19414.005)"
 
     ##  [1] "incidence_rate"                 "med_income"                    
     ##  [3] "pop_est2015"                    "poverty_percent"               
@@ -1149,13 +1151,13 @@ ridgeCV <- function(data.df, kfolds = 10, response){
 lassoCV(cancer.df, 10, "target_death_rate")
 ```
 
-    ## [1] 158.6382
+    ## [1] 157.6156
 
 ``` r
 ridgeCV(cancer.df, 10, "target_death_rate")
 ```
 
-    ## [1] 157.4946
+    ## [1] 156.6493
 
 Model Comparison with Iterative 10-Fold CV
 ==========================================
