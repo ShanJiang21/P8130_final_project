@@ -2,7 +2,7 @@
 title: "Linear Models"
 author: "Jieqi Tu (jt3098)"
 date: "12/11/2018"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
