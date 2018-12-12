@@ -8,10 +8,12 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(broom)
+library(leaps)
 ```
 
 ## Import and tidy data
-```{r import data, message=FALSE}
+```{r import data}
 # Import data
 cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
   janitor::clean_names() 
@@ -80,17 +82,115 @@ cancer.df$region <- sapply(cancer.df$state,
                  function(x) names(region.list)[grep(x,region.list)])     
 #relevelnumber of countries by region (original variable) 
 
-cancer.df = 
-  cancer.df %>% 
-  select(-median_age_male, -median_age_female) %>% 
-  # select median income as the only predictor to relect the population income level
-  select(-binned_inc) %>% 
-  # select percentage of residents employed as the only predictor to relect the population employment level
-  select(-pct_unemployed16_over) %>% 
-  # select percent of county residents with private health coverage as the only predictor to relect the population health coverage level
-  select(-pct_private_coverage_alone) %>% 
-  # select percentage of whits as the only predictor to relect the race proportion
-  select(-pct_black, -pct_asian)
+cancer.clean = cancer.df %>% as.data.frame()
+
+cancer.clean = 
+  cancer.clean %>% 
+  select(pct_white, pct_hs25_over, pct_employed16_over, pct_private_coverage, pct_public_coverage, target_death_rate, avg_ann_count_pop, avg_household_size, avg_deaths_yr_pop, med_income, median_age_male, median_age_female, region, study_quantile) %>% 
+  mutate(median_age_all_gender = (median_age_male + median_age_female)/2) %>% 
+  mutate(south = ifelse(region == "South", 1, 0)) %>% 
+  select(-median_age_female, -median_age_male, -region) %>% 
+  mutate(study_quantile = as.factor(study_quantile))
+# Select variables that we are interested in
+  
 ```
+
+## Variable Selection
+
+Automatic procedures:
+(1) Backward:
+```{r backward procedure}
+mult.fit = lm(target_death_rate ~ ., data = cancer.clean)
+summary(mult.fit)
+
+# Remove the variable with the highest p-value: avg_household_size
+step1 = update(mult.fit, . ~ . -avg_household_size)
+summary(step1)
+
+# All variables are significant with p-value less than 0.05
+model_backward = step1
+```
+
+(2) Forward:
+```{r forward procedure}
+# check p-value for each predictor in SLR model
+fit1 = lm(target_death_rate ~ pct_white, data = cancer.clean)
+tidy(fit1)
+fit2 = lm(target_death_rate ~ pct_hs25_over, data = cancer.clean)
+tidy(fit2)
+fit3 = lm(target_death_rate ~ pct_employed16_over, data = cancer.clean)
+tidy(fit3)
+fit4 = lm(target_death_rate ~ pct_private_coverage, data = cancer.clean)
+tidy(fit4)
+fit5 = lm(target_death_rate ~ pct_public_coverage, data = cancer.clean)
+tidy(fit5)
+fit6 = lm(target_death_rate ~ avg_ann_count_pop, data = cancer.clean)
+tidy(fit6)
+fit7 = lm(target_death_rate ~ avg_deaths_yr_pop, data = cancer.clean)
+tidy(fit7)
+fit8 = lm(target_death_rate ~ med_income, data = cancer.clean)
+tidy(fit8)
+fit9 = lm(target_death_rate ~ study_quantile, data = cancer.clean)
+tidy(fit9)
+fit10 = lm(target_death_rate ~ median_age_all_gender, data = cancer.clean)
+tidy(fit10)
+fit11 = lm(target_death_rate ~ avg_household_size, data = cancer.clean)
+tidy(fit11)
+fit12 = lm(target_death_rate ~ south, data = cancer.clean)
+tidy(fit12)
+
+# start with one predictor that has the lowest p-value: avg_deaths_yr_pop
+step1 = lm(target_death_rate ~ avg_deaths_yr_pop, data = cancer.clean)
+tidy(step1)
+
+# enter the one with the lowest p-value in the rest
+step2 = update(step1, .~. + med_income)
+tidy(step2)
+step3 = update(step2, .~. + pct_hs25_over)
+tidy(step3)
+step4 = update(step3, .~. + pct_public_coverage)
+tidy(step4)
+step5 = update(step4, .~. + pct_employed16_over)
+tidy(step5)
+step6 = update(step5, .~. + pct_private_coverage)
+tidy(step6)
+step7 = update(step6, .~. + south)
+tidy(step7)
+step8 = update(step7, .~. + pct_white)
+tidy(step8)
+step9 = update(step8, .~. + study_quantile)
+tidy(step9)
+step10 = update(step9, .~. + avg_ann_count_pop)
+tidy(step10)
+step11 = update(step10, .~. + avg_household_size)
+tidy(step11)
+step12 = update(step11, .~. + median_age_all_gender)
+tidy(step12)
+
+model_forward = step12
+```
+
+(3) stepwise procedure
+```{r stepwise procedure}
+step(mult.fit, direction = "backward")
+
+model_stepwise = lm(target_death_rate ~ pct_white + pct_hs25_over + 
+    pct_employed16_over + pct_private_coverage + pct_public_coverage + 
+    avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile + 
+    median_age_all_gender + south, data = cancer.clean)
+```
+
+Test-based procedures:
+```{r test-based procedures}
+best <- function(model, ...) 
+{
+  subsets <- regsubsets(formula(model), model.frame(model), ...)
+  subsets <- with(summary(subsets),
+                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
+  
+  return(subsets)
+}  
+
+round(best(mult.fit, nbest = 1), 4)
 ```
 
