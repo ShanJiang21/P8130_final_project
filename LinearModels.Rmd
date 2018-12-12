@@ -199,7 +199,6 @@ tibble(
   ggplot(aes(x = n_pred, y = value)) +
   geom_point() +
   geom_line() +
-  geom_text(aes(label = round(value, 1))) +
   facet_grid(Statistics ~ ., scales = "free_y") +
   theme_bw()
 ```
