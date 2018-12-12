@@ -108,6 +108,8 @@ step1 = update(mult.fit, . ~ . -avg_household_size)
 summary(step1)
 
 # All variables are significant with p-value less than 0.05
+
+# store the result of backward procedure
 model_backward = step1
 ```
 
@@ -167,13 +169,16 @@ tidy(step11)
 step12 = update(step11, .~. + median_age_all_gender)
 tidy(step12)
 
+# store the result of forward procedure
 model_forward = step12
 ```
 
 (3) stepwise procedure
 ```{r stepwise procedure}
+# use stepwise function to choose the best subsets
 step(mult.fit, direction = "backward")
 
+# store the result of stepwise procedure
 model_stepwise = lm(target_death_rate ~ pct_white + pct_hs25_over + 
     pct_employed16_over + pct_private_coverage + pct_public_coverage + 
     avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile + 
@@ -182,6 +187,7 @@ model_stepwise = lm(target_death_rate ~ pct_white + pct_hs25_over +
 
 Test-based procedures:
 ```{r test-based procedures}
+# generate test results and plot
 criteria_results <- (leaps::regsubsets(data = cancer.clean, target_death_rate ~.) %>% summary())
 tibble(
   n_pred = c(1:8),
