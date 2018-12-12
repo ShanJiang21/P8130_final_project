@@ -182,15 +182,18 @@ model_stepwise = lm(target_death_rate ~ pct_white + pct_hs25_over +
 
 Test-based procedures:
 ```{r test-based procedures}
-best <- function(model, ...) 
-{
-  subsets <- regsubsets(formula(model), model.frame(model), ...)
-  subsets <- with(summary(subsets),
-                  cbind(p = as.numeric(rownames(which)), which, rss, rsq, adjr2, cp, bic))
-  
-  return(subsets)
-}  
-
-round(best(mult.fit, nbest = 1), 4)
+criteria_results <- (leaps::regsubsets(data = cancer.clean, target_death_rate ~.) %>% summary())
+tibble(
+  n_pred = c(1:8),
+  "Cp" = criteria_results$cp,
+  "RSQ" = criteria_results$rsq,
+  "RSS" = criteria_results$rss,
+  "BIC" = criteria_results$bic
+) %>% gather(key = "Statistics", value = "value", 2:5) %>%
+  ggplot(aes(x = n_pred, y = value)) +
+  geom_point() +
+  geom_line() +
+  geom_text(aes(label = round(value, 1))) +
+  facet_grid(Statistics ~ ., scales = "free_y")
 ```
 
