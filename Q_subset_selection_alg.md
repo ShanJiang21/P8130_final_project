@@ -57,26 +57,14 @@ cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing
 
 ######TO avoid singular matrixes for our model fits, we need remove highly correlated and/or direct linear combos
 ###### Also lets make the response index 1, makes everything easier
+
 cancer.df <- cancer.df %>%
-  dplyr::select(-c(avg_deaths_per_year, avg_ann_count, pct_black, pct_asian, pct_other_race, binned_inc_lb, binned_inc_ub)) %>%
-  dplyr::select(target_death_rate, everything())
+  dplyr::select(-c(avg_deaths_per_year, avg_ann_count, pct_black, pct_asian, pct_other_race)) %>%
+  dplyr::select(target_death_rate, study_quantile, region, everything())
+
 
 #mostly need to decide between white/non-white or all race % AND binned_inc_lb, ub or median income
 ```
-
-Note aboute study\_quantile breakdown (0 vs. numeric quantile). May be better as binary yes/no? But then we lose info.
-
-``` r
-cancer.df %>% group_by(study_quantile) %>% summarize(n = n()) %>% knitr::kable()
-```
-
-| study\_quantile |     n|
-|:----------------|-----:|
-| None            |  1931|
-| Low             |   279|
-| Moderate        |   279|
-| High            |   279|
-| Very High       |   279|
 
 Imputing Values with less than 20% missing (two variables)
 ==========================================================
@@ -174,6 +162,7 @@ See generally what the optimal number of preds in an lm() ought to be (CP, adj*R
 #Set max number of predictors
 nvmax <- ncol(cancer.df) - 1
 reg.subsets <- cancer.df %>% 
+  dplyr::select(-binned_inc_point) %>% #Remove linear dependency (average of lower, upper bound)
   regsubsets(target_death_rate ~ ., data = ., really.big = FALSE, nvmax = nvmax)
 rs <- summary(reg.subsets)
 
@@ -186,11 +175,17 @@ r.df <- tibble(
   step = 1:nvmax
 )
 
+#Grab max r^2 pred number
+max.r2 <- with(r.df, which.max(adjr2))
+
+#Grab min bic pred number
+min.bic <- with(r.df, which.min(bic))
+
 cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
  # geom_point(aes(x = preds, step),color = "black",size = 0.5) +
-  geom_line(aes(x = preds, step), size = 1, color = "red") +
+  geom_line(aes(x = preds, step), size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "CP Criterion",
@@ -202,6 +197,7 @@ cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
 adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+  geom_vline(xintercept = max.r2, size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "Adjusted R^2",
@@ -211,6 +207,7 @@ adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
 bic.plot <- r.df %>% ggplot(aes(x = preds, y = bic, size = bic)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+  geom_vline(xintercept = min.bic, size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "Bayesian Information Criterion",
@@ -220,9 +217,180 @@ bic.plot <- r.df %>% ggplot(aes(x = preds, y = bic, size = bic)) +
 (cp.plot + adjr2.plot) / bic.plot
 ```
 
+    ## Warning: Removed 8 rows containing missing values (geom_point).
+
+    ## Warning: Removed 8 rows containing missing values (geom_path).
+
 <img src="Q_subset_selection_alg_files/figure-markdown_github/unnamed-chunk-5-1.png" width="90%" style="display: block; margin: auto;" />
 
 Based on the plots above, *C**P* criterion in the upper left with *p* ≤ *C**P* constraint in red, that somewhere around a 25-27 predictor model ought to be optimal. With respect to adjusted *R*<sup>2</sup>, it appears as though we reach a converging maximum starting around 20 and negligible increase after, where additional predictors have diminishing marginal return. Lastly, BIC is more conservative (penalizing more strongly for more predictors) and seems to suggest between a 15-20 predictor model (closer to 20). This may inform our subset selection criterion.
+
+Feature Selection Lasso
+=======================
+
+Inputes are data (cancer.df), response (default target\_death\_rate), lambda (penalty, default = 1, higher penalty removes more coefficients), print(logical whether or not to print the results)
+
+``` r
+lasso.feature.removal <- function(data = cancer.df, response = "target_death_rate", lambda = 1, print = TRUE) {
+  
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[, index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(.,data)
+  X <- X[,-1]  
+  #Fit Model
+  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda, family = "gaussian")
+  #Print if true
+  if (isTRUE(print)) {
+  coef.lasso   <- coef(mod.lasso)[,1]
+  remove.index <- which(coef.lasso == 0)
+  keep.index   <- which(coef.lasso != 0)
+                        
+    print(sprintf("Lambda = %f : Lasso method removed %i variables:", lambda, length(remove.index)))
+    print(paste(names(remove.index)))
+    print(sprintf("Lambda = %f : Lasso method selected %i variables:",lambda, length(keep.index)))
+    print(paste(names(keep.index)))
+    cat("\n")
+  }
+ # return(names(which(coef.lasso == 0)))
+}
+
+map(.x = c(0.01, .1, 0.5, 1, 2), ~lasso.feature.removal(cancer.df, lambda = .x))
+```
+
+    ## [1] "Lambda = 0.010000 : Lasso method removed 0 variables:"
+    ## character(0)
+    ## [1] "Lambda = 0.010000 : Lasso method selected 38 variables:"
+    ##  [1] "(Intercept)"                    "study_quantileLow"             
+    ##  [3] "study_quantileModerate"         "study_quantileHigh"            
+    ##  [5] "study_quantileVery High"        "region2"                       
+    ##  [7] "region3"                        "region4"                       
+    ##  [9] "incidence_rate"                 "med_income"                    
+    ## [11] "pop_est2015"                    "poverty_percent"               
+    ## [13] "median_age"                     "median_age_male"               
+    ## [15] "median_age_female"              "avg_household_size"            
+    ## [17] "percent_married"                "pct_no_hs18_24"                
+    ## [19] "pct_hs18_24"                    "pct_bach_deg18_24"             
+    ## [21] "pct_hs25_over"                  "pct_bach_deg25_over"           
+    ## [23] "pct_unemployed16_over"          "pct_private_coverage"          
+    ## [25] "pct_emp_priv_coverage"          "pct_public_coverage"           
+    ## [27] "pct_public_coverage_alone"      "pct_white"                     
+    ## [29] "pct_married_households"         "birth_rate"                    
+    ## [31] "pct_non_white"                  "binned_inc_lb"                 
+    ## [33] "binned_inc_ub"                  "binned_inc_point"              
+    ## [35] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
+    ## [37] "imp_pct_employed16_over"        "imp_pct_private_coverage_alone"
+    ## 
+    ## [1] "Lambda = 0.100000 : Lasso method removed 6 variables:"
+    ## [1] "region3"           "poverty_percent"   "median_age"       
+    ## [4] "pct_bach_deg18_24" "binned_inc_lb"     "binned_inc_point" 
+    ## [1] "Lambda = 0.100000 : Lasso method selected 32 variables:"
+    ##  [1] "(Intercept)"                    "study_quantileLow"             
+    ##  [3] "study_quantileModerate"         "study_quantileHigh"            
+    ##  [5] "study_quantileVery High"        "region2"                       
+    ##  [7] "region4"                        "incidence_rate"                
+    ##  [9] "med_income"                     "pop_est2015"                   
+    ## [11] "median_age_male"                "median_age_female"             
+    ## [13] "avg_household_size"             "percent_married"               
+    ## [15] "pct_no_hs18_24"                 "pct_hs18_24"                   
+    ## [17] "pct_hs25_over"                  "pct_bach_deg25_over"           
+    ## [19] "pct_unemployed16_over"          "pct_private_coverage"          
+    ## [21] "pct_emp_priv_coverage"          "pct_public_coverage"           
+    ## [23] "pct_public_coverage_alone"      "pct_white"                     
+    ## [25] "pct_married_households"         "birth_rate"                    
+    ## [27] "pct_non_white"                  "binned_inc_ub"                 
+    ## [29] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
+    ## [31] "imp_pct_employed16_over"        "imp_pct_private_coverage_alone"
+    ## 
+    ## [1] "Lambda = 0.500000 : Lasso method removed 18 variables:"
+    ##  [1] "study_quantileLow"              "study_quantileModerate"        
+    ##  [3] "study_quantileHigh"             "study_quantileVery High"       
+    ##  [5] "region3"                        "region4"                       
+    ##  [7] "med_income"                     "pop_est2015"                   
+    ##  [9] "poverty_percent"                "median_age"                    
+    ## [11] "pct_bach_deg18_24"              "pct_public_coverage"           
+    ## [13] "pct_married_households"         "pct_non_white"                 
+    ## [15] "binned_inc_lb"                  "binned_inc_point"              
+    ## [17] "imp_pct_employed16_over"        "imp_pct_private_coverage_alone"
+    ## [1] "Lambda = 0.500000 : Lasso method selected 20 variables:"
+    ##  [1] "(Intercept)"               "region2"                  
+    ##  [3] "incidence_rate"            "median_age_male"          
+    ##  [5] "median_age_female"         "avg_household_size"       
+    ##  [7] "percent_married"           "pct_no_hs18_24"           
+    ##  [9] "pct_hs18_24"               "pct_hs25_over"            
+    ## [11] "pct_bach_deg25_over"       "pct_unemployed16_over"    
+    ## [13] "pct_private_coverage"      "pct_emp_priv_coverage"    
+    ## [15] "pct_public_coverage_alone" "pct_white"                
+    ## [17] "birth_rate"                "binned_inc_ub"            
+    ## [19] "avg_deaths_yr_pop"         "avg_ann_count_pop"        
+    ## 
+    ## [1] "Lambda = 1.000000 : Lasso method removed 22 variables:"
+    ##  [1] "study_quantileLow"              "study_quantileModerate"        
+    ##  [3] "study_quantileHigh"             "study_quantileVery High"       
+    ##  [5] "region3"                        "region4"                       
+    ##  [7] "med_income"                     "pop_est2015"                   
+    ##  [9] "poverty_percent"                "median_age"                    
+    ## [11] "avg_household_size"             "pct_no_hs18_24"                
+    ## [13] "pct_bach_deg18_24"              "pct_private_coverage"          
+    ## [15] "pct_public_coverage"            "pct_white"                     
+    ## [17] "pct_married_households"         "pct_non_white"                 
+    ## [19] "binned_inc_lb"                  "binned_inc_point"              
+    ## [21] "imp_pct_employed16_over"        "imp_pct_private_coverage_alone"
+    ## [1] "Lambda = 1.000000 : Lasso method selected 16 variables:"
+    ##  [1] "(Intercept)"               "region2"                  
+    ##  [3] "incidence_rate"            "median_age_male"          
+    ##  [5] "median_age_female"         "percent_married"          
+    ##  [7] "pct_hs18_24"               "pct_hs25_over"            
+    ##  [9] "pct_bach_deg25_over"       "pct_unemployed16_over"    
+    ## [11] "pct_emp_priv_coverage"     "pct_public_coverage_alone"
+    ## [13] "birth_rate"                "binned_inc_ub"            
+    ## [15] "avg_deaths_yr_pop"         "avg_ann_count_pop"        
+    ## 
+    ## [1] "Lambda = 2.000000 : Lasso method removed 26 variables:"
+    ##  [1] "study_quantileLow"              "study_quantileModerate"        
+    ##  [3] "study_quantileHigh"             "study_quantileVery High"       
+    ##  [5] "region3"                        "region4"                       
+    ##  [7] "med_income"                     "pop_est2015"                   
+    ##  [9] "poverty_percent"                "median_age"                    
+    ## [11] "avg_household_size"             "pct_no_hs18_24"                
+    ## [13] "pct_bach_deg18_24"              "pct_private_coverage"          
+    ## [15] "pct_emp_priv_coverage"          "pct_public_coverage"           
+    ## [17] "pct_white"                      "pct_married_households"        
+    ## [19] "birth_rate"                     "pct_non_white"                 
+    ## [21] "binned_inc_lb"                  "binned_inc_ub"                 
+    ## [23] "binned_inc_point"               "avg_ann_count_pop"             
+    ## [25] "imp_pct_employed16_over"        "imp_pct_private_coverage_alone"
+    ## [1] "Lambda = 2.000000 : Lasso method selected 12 variables:"
+    ##  [1] "(Intercept)"               "region2"                  
+    ##  [3] "incidence_rate"            "median_age_male"          
+    ##  [5] "median_age_female"         "percent_married"          
+    ##  [7] "pct_hs18_24"               "pct_hs25_over"            
+    ##  [9] "pct_bach_deg25_over"       "pct_unemployed16_over"    
+    ## [11] "pct_public_coverage_alone" "avg_deaths_yr_pop"
+
+    ## [[1]]
+    ## NULL
+    ## 
+    ## [[2]]
+    ## NULL
+    ## 
+    ## [[3]]
+    ## NULL
+    ## 
+    ## [[4]]
+    ## NULL
+    ## 
+    ## [[5]]
+    ## NULL
 
 K-fold cross validation funciton for subset selecion (MSE, AIC, BIC criterion)
 ==============================================================================
@@ -271,8 +439,23 @@ bicCV <- function(data.df, kfolds = 10){
 }
 ```
 
+1. Models
+=========
+
+Scale continuous predictors
+
+``` r
+cancer.df <- bind_cols(
+    cancer.df %>%
+    dplyr::select(c(target_death_rate:region)),
+    cancer.df %>%
+    dplyr::select(-c(target_death_rate:region)) %>%
+    scale() %>% as.tibble()
+)
+```
+
 Forward Subset Selection with k-Fold CV and MSE criterion
-=========================================================
+---------------------------------------------------------
 
 Function to run the subset algorithm, it will output the variable selection process so you visualize how it works. Comment out the set seed to get true variability in the subsets, only leave it in for reproducibility.
 
@@ -355,8 +538,8 @@ while (length(currPreds) < maxPreds) {
   ##Take out the pred you just added from consideration
   availPreds <- setdiff(allPreds,currPreds)
   ## Print stuff out for debugging and attention-grabbing
-  print(sprintf("Iteration: %i Predictor Added: %s %s Value: %s",i, names(sub.cancer.df[,bestPred]), criterion, bestError))
-  print(currPreds)
+  #print(sprintf("Iteration: %i Predictor Added: %s %s Value: %s",i, names(sub.cancer.df[,bestPred]), criterion, bestError))
+  #print(currPreds)
   result.mat[i,] <- c(bestPred,bestError)         #You can also comment out all print() later, it's just to watch the algorithm work
   pred.list[[i]] <- currPreds
   i <- i + 1
@@ -366,221 +549,9 @@ while (length(currPreds) < maxPreds) {
 
 #Run Subset, call function, output is a list with predictor sets, reslut matrix and maxPreds
 f.mse.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "mse")
-```
-
-    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop mse Value: 527.201084624008"
-    ## [1] 27
-    ## [1] "Iteration: 2 Predictor Added: median_age_female mse Value: 283.134031732454"
-    ## [1] 27  8
-    ## [1] "Iteration: 3 Predictor Added: region mse Value: 245.539023794194"
-    ## [1] 27  8 29
-    ## [1] "Iteration: 4 Predictor Added: incidence_rate mse Value: 219.253311188275"
-    ## [1] 27  8 29  2
-    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over mse Value: 201.720946366206"
-    ## [1] 27  8 29  2 16
-    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 mse Value: 190.677493465575"
-    ## [1] 27  8 29  2 16 12
-    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage mse Value: 181.907633318535"
-    ## [1] 27  8 29  2 16 12 18
-    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage mse Value: 174.801367936712"
-    ## [1] 27  8 29  2 16 12 18 17
-    ## [1] "Iteration: 9 Predictor Added: med_income mse Value: 171.408074730024"
-    ## [1] 27  8 29  2 16 12 18 17  3
-    ## [1] "Iteration: 10 Predictor Added: median_age_male mse Value: 169.472897870424"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7
-    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over mse Value: 167.305248894531"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14
-    ## [1] "Iteration: 12 Predictor Added: birth_rate mse Value: 165.81952576949"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23
-    ## [1] "Iteration: 13 Predictor Added: imp_pct_employed16_over mse Value: 165.023261218107"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30
-    ## [1] "Iteration: 14 Predictor Added: binned_inc_point mse Value: 165.239813189615"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25
-    ## [1] "Iteration: 15 Predictor Added: avg_ann_count_pop mse Value: 163.91788857869"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28
-    ## [1] "Iteration: 16 Predictor Added: pct_public_coverage mse Value: 162.601753422772"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19
-    ## [1] "Iteration: 17 Predictor Added: pct_public_coverage_alone mse Value: 159.595643516543"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20
-    ## [1] "Iteration: 18 Predictor Added: pct_no_hs18_24 mse Value: 157.841657343695"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11
-    ## [1] "Iteration: 19 Predictor Added: percent_married mse Value: 158.799136266706"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10
-    ## [1] "Iteration: 20 Predictor Added: pct_non_white mse Value: 157.799562120022"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24
-    ## [1] "Iteration: 21 Predictor Added: median_age mse Value: 158.220477013255"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6
-    ## [1] "Iteration: 22 Predictor Added: pct_white mse Value: 157.554328690302"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21
-    ## [1] "Iteration: 23 Predictor Added: study_quantile mse Value: 158.217917972391"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [1] "Iteration: 24 Predictor Added: imp_pct_private_coverage_alone mse Value: 157.618314281077"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31
-    ## [1] "Iteration: 25 Predictor Added: pct_married_households mse Value: 156.995140308021"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31 22
-    ## [1] "Iteration: 26 Predictor Added: poverty_percent mse Value: 158.135267934409"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31 22  5
-    ## [1] "Iteration: 27 Predictor Added: pct_bach_deg25_over mse Value: 156.875992300091"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31 22  5 15
-    ## [1] "Iteration: 28 Predictor Added: avg_household_size mse Value: 156.351454326285"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31 22  5 15  9
-    ## [1] "Iteration: 29 Predictor Added: pop_est2015 mse Value: 157.282426781689"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31 22  5 15  9  4
-    ## [1] "Iteration: 30 Predictor Added: pct_bach_deg18_24 mse Value: 157.833673166326"
-    ##  [1] 27  8 29  2 16 12 18 17  3  7 14 23 30 25 28 19 20 11 10 24  6 21 26
-    ## [24] 31 22  5 15  9  4 13
-
-``` r
 f.aic.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "aic")
-```
-
-    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop aic Value: 22198.0665961323"
-    ## [1] 27
-    ## [1] "Iteration: 2 Predictor Added: median_age_female aic Value: 20685.562875775"
-    ## [1] 27  8
-    ## [1] "Iteration: 3 Predictor Added: region aic Value: 20329.1294859874"
-    ## [1] 27  8 29
-    ## [1] "Iteration: 4 Predictor Added: incidence_rate aic Value: 20038.275799709"
-    ## [1] 27  8 29  2
-    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over aic Value: 19847.2343075774"
-    ## [1] 27  8 29  2 16
-    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 aic Value: 19699.7096717552"
-    ## [1] 27  8 29  2 16 12
-    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage aic Value: 19593.2167028779"
-    ## [1] 27  8 29  2 16 12 18
-    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage aic Value: 19495.3367374229"
-    ## [1] 27  8 29  2 16 12 18 17
-    ## [1] "Iteration: 9 Predictor Added: binned_inc_point aic Value: 19445.2937552483"
-    ## [1] 27  8 29  2 16 12 18 17 25
-    ## [1] "Iteration: 10 Predictor Added: median_age_male aic Value: 19407.362081686"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7
-    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over aic Value: 19375.9620050532"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14
-    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop aic Value: 19352.165709638"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28
-    ## [1] "Iteration: 13 Predictor Added: imp_pct_employed16_over aic Value: 19340.3205951832"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30
-    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage aic Value: 19323.8475416097"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19
-    ## [1] "Iteration: 15 Predictor Added: pct_public_coverage_alone aic Value: 19260.7790885018"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20
-    ## [1] "Iteration: 16 Predictor Added: birth_rate aic Value: 19258.5144183834"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23
-    ## [1] "Iteration: 17 Predictor Added: pct_no_hs18_24 aic Value: 19253.5821378879"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11
-    ## [1] "Iteration: 18 Predictor Added: pct_white aic Value: 19249.085781093"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21
-    ## [1] "Iteration: 19 Predictor Added: pct_non_white aic Value: 19229.6313596791"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24
-    ## [1] "Iteration: 20 Predictor Added: imp_pct_private_coverage_alone aic Value: 19229.2999454003"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31
-    ## [1] "Iteration: 21 Predictor Added: pct_bach_deg25_over aic Value: 19218.8982259711"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15
-    ## [1] "Iteration: 22 Predictor Added: percent_married aic Value: 19219.4704951273"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10
-    ## [1] "Iteration: 23 Predictor Added: pct_married_households aic Value: 19214.4479600622"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [1] "Iteration: 24 Predictor Added: med_income aic Value: 19214.472081216"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3
-    ## [1] "Iteration: 25 Predictor Added: poverty_percent aic Value: 19214.4406206458"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3  5
-    ## [1] "Iteration: 26 Predictor Added: pop_est2015 aic Value: 19215.7775372961"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3  5  4
-    ## [1] "Iteration: 27 Predictor Added: avg_household_size aic Value: 19214.3646431728"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3  5  4  9
-    ## [1] "Iteration: 28 Predictor Added: median_age aic Value: 19215.3903954357"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3  5  4  9  6
-    ## [1] "Iteration: 29 Predictor Added: pct_bach_deg18_24 aic Value: 19220.2931516095"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3  5  4  9  6 13
-    ## [1] "Iteration: 30 Predictor Added: study_quantile aic Value: 19223.382583638"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 30 19 20 23 11 21 24 31 15 10 22
-    ## [24]  3  5  4  9  6 13 26
-
-``` r
 f.bic.list <- f.subset(cancer.df, maxPreds = ncol(cancer.df) - 1, nfolds = 5, criterion = "bic")
-```
 
-    ## [1] "Iteration: 1 Predictor Added: avg_deaths_yr_pop bic Value: 22215.6924870038"
-    ## [1] 27
-    ## [1] "Iteration: 2 Predictor Added: median_age_female bic Value: 20708.093178362"
-    ## [1] 27  8
-    ## [1] "Iteration: 3 Predictor Added: region bic Value: 20369.2060743918"
-    ## [1] 27  8 29
-    ## [1] "Iteration: 4 Predictor Added: incidence_rate bic Value: 20083.0314886465"
-    ## [1] 27  8 29  2
-    ## [1] "Iteration: 5 Predictor Added: pct_unemployed16_over bic Value: 19898.9019304875"
-    ## [1] 27  8 29  2 16
-    ## [1] "Iteration: 6 Predictor Added: pct_hs18_24 bic Value: 19758.3749159052"
-    ## [1] 27  8 29  2 16 12
-    ## [1] "Iteration: 7 Predictor Added: pct_emp_priv_coverage bic Value: 19658.4800616342"
-    ## [1] 27  8 29  2 16 12 18
-    ## [1] "Iteration: 8 Predictor Added: pct_private_coverage bic Value: 19565.1958078345"
-    ## [1] 27  8 29  2 16 12 18 17
-    ## [1] "Iteration: 9 Predictor Added: binned_inc_point bic Value: 19521.1148133499"
-    ## [1] 27  8 29  2 16 12 18 17 25
-    ## [1] "Iteration: 10 Predictor Added: median_age_male bic Value: 19489.3976286466"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7
-    ## [1] "Iteration: 11 Predictor Added: pct_hs25_over bic Value: 19463.8343553084"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14
-    ## [1] "Iteration: 12 Predictor Added: avg_ann_count_pop bic Value: 19443.5191354375"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28
-    ## [1] "Iteration: 13 Predictor Added: pct_public_coverage bic Value: 19438.8015052106"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19
-    ## [1] "Iteration: 14 Predictor Added: pct_public_coverage_alone bic Value: 19398.8995450565"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20
-    ## [1] "Iteration: 15 Predictor Added: imp_pct_employed16_over bic Value: 19373.5711110448"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30
-    ## [1] "Iteration: 16 Predictor Added: percent_married bic Value: 19373.4190119482"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10
-    ## [1] "Iteration: 17 Predictor Added: med_income bic Value: 19374.0015684681"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3
-    ## [1] "Iteration: 18 Predictor Added: birth_rate bic Value: 19374.0988058861"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23
-    ## [1] "Iteration: 19 Predictor Added: pct_bach_deg25_over bic Value: 19376.938381301"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15
-    ## [1] "Iteration: 20 Predictor Added: imp_pct_private_coverage_alone bic Value: 19378.2259326285"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31
-    ## [1] "Iteration: 21 Predictor Added: pct_non_white bic Value: 19380.9522301402"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24
-    ## [1] "Iteration: 22 Predictor Added: pct_white bic Value: 19367.6702979492"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21
-    ## [1] "Iteration: 23 Predictor Added: pct_married_households bic Value: 19371.5415153228"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [1] "Iteration: 24 Predictor Added: pct_no_hs18_24 bic Value: 19376.0397885302"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11
-    ## [1] "Iteration: 25 Predictor Added: pop_est2015 bic Value: 19381.5375177601"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11  4
-    ## [1] "Iteration: 26 Predictor Added: avg_household_size bic Value: 19388.0113412524"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11  4  9
-    ## [1] "Iteration: 27 Predictor Added: pct_bach_deg18_24 bic Value: 19395.1216529696"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11  4  9 13
-    ## [1] "Iteration: 28 Predictor Added: poverty_percent bic Value: 19405.4974217502"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11  4  9 13  5
-    ## [1] "Iteration: 29 Predictor Added: median_age bic Value: 19413.2380662472"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11  4  9 13  5  6
-    ## [1] "Iteration: 30 Predictor Added: study_quantile bic Value: 19437.1345318261"
-    ##  [1] 27  8 29  2 16 12 18 17 25  7 14 28 19 20 30 10  3 23 15 31 24 21 22
-    ## [24] 11  4  9 13  5  6 26
-
-``` r
 #Show the 'best' final selection with minimal MSE (takes in a list object from the previous function, with criterion (MSE/AIC))
 present.fs.result <- function(f.result.list, criterion) {
 lm.fs.preds <- with(f.result.list, pred.list[[which.min(result.mat[,2])]]) #Pick out indices from best model
@@ -594,27 +565,47 @@ print(names(cancer.df[,c(lm.fs.preds)]))
 present.fs.result(f.mse.list, "MSE")
 ```
 
-    ## [1] "The best predictor set of 28 predictors, out of a max of 30, (MSE = 156.351)"
+    ## [1] "The best predictor set of 30 predictors, out of a max of 32, (MSE = 156.7)"
     ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
     ##  [3] "region"                         "incidence_rate"                
     ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
     ##  [7] "pct_emp_priv_coverage"          "pct_private_coverage"          
-    ##  [9] "med_income"                     "median_age_male"               
-    ## [11] "pct_hs25_over"                  "birth_rate"                    
-    ## [13] "imp_pct_employed16_over"        "binned_inc_point"              
-    ## [15] "avg_ann_count_pop"              "pct_public_coverage"           
-    ## [17] "pct_public_coverage_alone"      "pct_no_hs18_24"                
-    ## [19] "percent_married"                "pct_non_white"                 
-    ## [21] "median_age"                     "pct_white"                     
-    ## [23] "study_quantile"                 "imp_pct_private_coverage_alone"
-    ## [25] "pct_married_households"         "poverty_percent"               
-    ## [27] "pct_bach_deg25_over"            "avg_household_size"
+    ##  [9] "binned_inc_point"               "median_age_male"               
+    ## [11] "avg_ann_count_pop"              "pct_hs25_over"                 
+    ## [13] "binned_inc_lb"                  "poverty_percent"               
+    ## [15] "med_income"                     "birth_rate"                    
+    ## [17] "pct_public_coverage"            "pct_public_coverage_alone"     
+    ## [19] "imp_pct_employed16_over"        "study_quantile"                
+    ## [21] "pct_no_hs18_24"                 "avg_household_size"            
+    ## [23] "pop_est2015"                    "pct_bach_deg25_over"           
+    ## [25] "imp_pct_private_coverage_alone" "percent_married"               
+    ## [27] "median_age"                     "pct_non_white"                 
+    ## [29] "binned_inc_ub"                  "pct_white"
 
 ``` r
 present.fs.result(f.aic.list, "AIC")
 ```
 
-    ## [1] "The best predictor set of 27 predictors, out of a max of 30, (AIC = 19214.365)"
+    ## [1] "The best predictor set of 26 predictors, out of a max of 32, (AIC = 19212.628)"
+    ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
+    ##  [3] "region"                         "incidence_rate"                
+    ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
+    ##  [7] "pct_emp_priv_coverage"          "pct_private_coverage"          
+    ##  [9] "binned_inc_ub"                  "median_age_male"               
+    ## [11] "pct_hs25_over"                  "avg_ann_count_pop"             
+    ## [13] "pct_public_coverage"            "pct_public_coverage_alone"     
+    ## [15] "imp_pct_employed16_over"        "med_income"                    
+    ## [17] "birth_rate"                     "pct_bach_deg25_over"           
+    ## [19] "percent_married"                "pct_non_white"                 
+    ## [21] "pct_white"                      "imp_pct_private_coverage_alone"
+    ## [23] "pct_married_households"         "binned_inc_lb"                 
+    ## [25] "pct_no_hs18_24"                 "pop_est2015"
+
+``` r
+present.fs.result(f.bic.list, "BIC")
+```
+
+    ## [1] "The best predictor set of 23 predictors, out of a max of 32, (BIC = 19370.413)"
     ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
     ##  [3] "region"                         "incidence_rate"                
     ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
@@ -623,29 +614,10 @@ present.fs.result(f.aic.list, "AIC")
     ## [11] "pct_hs25_over"                  "avg_ann_count_pop"             
     ## [13] "imp_pct_employed16_over"        "pct_public_coverage"           
     ## [15] "pct_public_coverage_alone"      "birth_rate"                    
-    ## [17] "pct_no_hs18_24"                 "pct_white"                     
-    ## [19] "pct_non_white"                  "imp_pct_private_coverage_alone"
-    ## [21] "pct_bach_deg25_over"            "percent_married"               
-    ## [23] "pct_married_households"         "med_income"                    
-    ## [25] "poverty_percent"                "pop_est2015"                   
-    ## [27] "avg_household_size"
-
-``` r
-present.fs.result(f.bic.list, "BIC")
-```
-
-    ## [1] "The best predictor set of 22 predictors, out of a max of 30, (BIC = 19367.67)"
-    ##  [1] "avg_deaths_yr_pop"              "median_age_female"             
-    ##  [3] "region"                         "incidence_rate"                
-    ##  [5] "pct_unemployed16_over"          "pct_hs18_24"                   
-    ##  [7] "pct_emp_priv_coverage"          "pct_private_coverage"          
-    ##  [9] "binned_inc_point"               "median_age_male"               
-    ## [11] "pct_hs25_over"                  "avg_ann_count_pop"             
-    ## [13] "pct_public_coverage"            "pct_public_coverage_alone"     
-    ## [15] "imp_pct_employed16_over"        "percent_married"               
-    ## [17] "med_income"                     "birth_rate"                    
-    ## [19] "pct_bach_deg25_over"            "imp_pct_private_coverage_alone"
-    ## [21] "pct_non_white"                  "pct_white"
+    ## [17] "pct_no_hs18_24"                 "imp_pct_private_coverage_alone"
+    ## [19] "pct_bach_deg25_over"            "percent_married"               
+    ## [21] "med_income"                     "pct_non_white"                 
+    ## [23] "pct_white"
 
 ``` r
 #Pull the indices for the selected models, for later comparison
@@ -761,8 +733,8 @@ while (length(currPreds) >= minPreds) {
   minError <- c(minError, bestError)
   availPreds <- currPreds
   ## Print stuff out for debugging and attention-grabbing
-  print(sprintf("Predictor Removed: %s  %s Value: %s",names(sub.cancer.df[,worstPred]), criterion, bestError))
-  print(currPreds)
+  #print(sprintf("Predictor Removed: %s  %s Value: %s",names(sub.cancer.df[,worstPred]), criterion, bestError))
+  #print(currPreds)
   result.mat[i,] <- c(worstPred,bestError)   #All print() can be commented out at any time, just to visualize alg. process
   pred.list[[i]] <- currPreds
   
@@ -773,164 +745,9 @@ while (length(currPreds) >= minPreds) {
 
 #Call functions, output is a list of preds and a result matrix of criterion and predictor removed
 b.mse.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "mse")
-```
-
-    ## [1] "Predictor Removed: pct_hs18_24  mse Value: 156.510549536378"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25
-    ## [24] 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pop_est2015  mse Value: 160.582069152264"
-    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 23 24 25 26
-    ## [24] 27 28 29 30 31
-    ## [1] "Predictor Removed: birth_rate  mse Value: 160.87420385811"
-    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 27
-    ## [24] 28 29 30 31
-    ## [1] "Predictor Removed: region  mse Value: 160.697812030531"
-    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 27
-    ## [24] 28 30 31
-    ## [1] "Predictor Removed: avg_deaths_yr_pop  mse Value: 170.809987875359"
-    ##  [1]  2  3  5  6  7  8  9 10 11 13 14 15 16 17 18 19 20 21 22 24 25 26 28
-    ## [24] 30 31
-    ## [1] "Predictor Removed: pct_bach_deg18_24  mse Value: 393.036660068404"
-    ##  [1]  2  3  5  6  7  8  9 10 11 14 15 16 17 18 19 20 21 22 24 25 26 28 30
-    ## [24] 31
-    ## [1] "Predictor Removed: pct_married_households  mse Value: 392.218901498869"
-    ##  [1]  2  3  5  6  7  8  9 10 11 14 15 16 17 18 19 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: pct_hs25_over  mse Value: 400.998164009748"
-    ##  [1]  2  3  5  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: poverty_percent  mse Value: 404.501487076802"
-    ##  [1]  2  3  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: incidence_rate  mse Value: 407.315699186772"
-    ##  [1]  3  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: med_income  mse Value: 522.305761053873"
-    ##  [1]  6  7  8  9 10 11 15 16 17 18 19 20 21 24 25 26 28 30 31
-    ## [1] "Predictor Removed: binned_inc_point  mse Value: 522.228919645621"
-    ##  [1]  6  7  8  9 10 11 15 16 17 18 19 20 21 24 26 28 30 31
-    ## [1] "Predictor Removed: pct_emp_priv_coverage  mse Value: 523.570352541506"
-    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 24 26 28 30 31
-    ## [1] "Predictor Removed: pct_non_white  mse Value: 526.063952491177"
-    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 26 28 30 31
-    ## [1] "Predictor Removed: imp_pct_private_coverage_alone  mse Value: 527.901017533572"
-    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 26 28 30
-    ## [1] "Predictor Removed: study_quantile  mse Value: 527.610358496482"
-    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 28 30
-    ## [1] "Predictor Removed: avg_ann_count_pop  mse Value: 529.119923914449"
-    ##  [1]  6  7  8  9 10 11 15 16 17 19 20 21 30
-    ## [1] "Predictor Removed: pct_private_coverage  mse Value: 528.266530944576"
-    ##  [1]  6  7  8  9 10 11 15 16 19 20 21 30
-    ## [1] "Predictor Removed: imp_pct_employed16_over  mse Value: 530.33261595019"
-    ##  [1]  6  7  8  9 10 11 15 16 19 20 21
-    ## [1] "Predictor Removed: pct_unemployed16_over  mse Value: 530.067214373376"
-    ##  [1]  6  7  8  9 10 11 15 19 20 21
-    ## [1] "Predictor Removed: percent_married  mse Value: 533.979260372647"
-    ## [1]  6  7  8  9 11 15 19 20 21
-
-``` r
 b.aic.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "aic")
-```
-
-    ## [1] "Predictor Removed: median_age_female  aic Value: 19218.1436235805"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
-    ## [24] 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_non_white  aic Value: 19400.2744619511"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 25 26
-    ## [24] 27 28 29 30 31
-    ## [1] "Predictor Removed: birth_rate  aic Value: 19442.6923128896"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 22 25 26 27
-    ## [24] 28 29 30 31
-    ## [1] "Predictor Removed: pct_married_households  aic Value: 19447.0328239301"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 21 25 26 27 28
-    ## [24] 29 30 31
-    ## [1] "Predictor Removed: pct_white  aic Value: 19447.673375308"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 20 25 26 27 28 29
-    ## [24] 30 31
-    ## [1] "Predictor Removed: pct_public_coverage_alone  aic Value: 19448.1008445165"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 19 25 26 27 28 29 30
-    ## [24] 31
-    ## [1] "Predictor Removed: pct_public_coverage  aic Value: 19540.5810837299"
-    ##  [1]  2  3  4  5  6  7  9 10 11 12 13 14 15 16 17 18 25 26 27 28 29 30 31
-    ## [1] "Predictor Removed: poverty_percent  aic Value: 19584.9304263121"
-    ##  [1]  2  3  4  6  7  9 10 11 12 13 14 15 16 17 18 25 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_private_coverage  aic Value: 19586.523965909"
-    ##  [1]  2  3  4  6  7  9 10 11 12 13 14 15 16 18 25 26 27 28 29 30 31
-    ## [1] "Predictor Removed: med_income  aic Value: 19707.8198909186"
-    ##  [1]  2  4  6  7  9 10 11 12 13 14 15 16 18 25 26 27 28 29 30 31
-    ## [1] "Predictor Removed: avg_ann_count_pop  aic Value: 19710.555318383"
-    ##  [1]  2  4  6  7  9 10 11 12 13 14 15 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: pct_bach_deg25_over  aic Value: 19737.1060689487"
-    ##  [1]  2  4  6  7  9 10 11 12 13 14 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: pct_hs25_over  aic Value: 19744.5078197841"
-    ##  [1]  2  4  6  7  9 10 11 12 13 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: avg_household_size  aic Value: 19785.2507579338"
-    ##  [1]  2  4  6  7 10 11 12 13 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: incidence_rate  aic Value: 19802.6772908846"
-    ##  [1]  4  6  7 10 11 12 13 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: pct_no_hs18_24  aic Value: 20039.4361353389"
-    ##  [1]  4  6  7 10 12 13 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: percent_married  aic Value: 20046.0840875758"
-    ##  [1]  4  6  7 12 13 16 18 25 26 27 29 30 31
-    ## [1] "Predictor Removed: binned_inc_point  aic Value: 20058.2524634261"
-    ##  [1]  4  6  7 12 13 16 18 26 27 29 30 31
-    ## [1] "Predictor Removed: region  aic Value: 20079.9709755665"
-    ##  [1]  4  6  7 12 13 16 18 26 27 30 31
-    ## [1] "Predictor Removed: study_quantile  aic Value: 20291.5309272779"
-    ##  [1]  4  6  7 12 13 16 18 27 30 31
-    ## [1] "Predictor Removed: pct_unemployed16_over  aic Value: 20293.5864721778"
-    ## [1]  4  6  7 12 13 18 27 30 31
-
-``` r
 b.bic.list <- b.subset(cancer.df, minPreds = 10, nfolds = 5, criterion = "bic")
-```
 
-    ## [1] "Predictor Removed: binned_inc_point  bic Value: 19414.0049284942"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
-    ## [24] 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_non_white  bic Value: 19415.5005436614"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 26
-    ## [24] 27 28 29 30 31
-    ## [1] "Predictor Removed: birth_rate  bic Value: 19431.249868587"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 26 27
-    ## [24] 28 29 30 31
-    ## [1] "Predictor Removed: pct_married_households  bic Value: 19431.4261597884"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 26 27 28
-    ## [24] 29 30 31
-    ## [1] "Predictor Removed: pct_white  bic Value: 19427.2636776421"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 26 27 28 29
-    ## [24] 30 31
-    ## [1] "Predictor Removed: pct_public_coverage_alone  bic Value: 19418.9311468416"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 26 27 28 29 30
-    ## [24] 31
-    ## [1] "Predictor Removed: pct_public_coverage  bic Value: 19472.9980968485"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_emp_priv_coverage  bic Value: 19479.3699366376"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_private_coverage  bic Value: 19560.6068820597"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_unemployed16_over  bic Value: 19569.3689860388"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 15 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_bach_deg25_over  bic Value: 19662.7449967179"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 14 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_hs25_over  bic Value: 19672.0180828374"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 13 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_bach_deg18_24  bic Value: 19715.8489870154"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 12 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_hs18_24  bic Value: 19711.957289576"
-    ##  [1]  2  3  4  5  6  7  8  9 10 11 26 27 28 29 30 31
-    ## [1] "Predictor Removed: pct_no_hs18_24  bic Value: 19884.3260589498"
-    ##  [1]  2  3  4  5  6  7  8  9 10 26 27 28 29 30 31
-    ## [1] "Predictor Removed: percent_married  bic Value: 19888.3486152471"
-    ##  [1]  2  3  4  5  6  7  8  9 26 27 28 29 30 31
-    ## [1] "Predictor Removed: avg_household_size  bic Value: 19886.7383101254"
-    ##  [1]  2  3  4  5  6  7  8 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age_female  bic Value: 19893.1452759665"
-    ##  [1]  2  3  4  5  6  7 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age_male  bic Value: 20199.9957457598"
-    ##  [1]  2  3  4  5  6 26 27 28 29 30 31
-    ## [1] "Predictor Removed: median_age  bic Value: 21023.8218111644"
-    ##  [1]  2  3  4  5 26 27 28 29 30 31
-    ## [1] "Predictor Removed: poverty_percent  bic Value: 21017.9128240713"
-    ## [1]  2  3  4 26 27 28 29 30 31
-
-``` r
 #Visualize function takes in a list object from the last function
 present.bs.result <- function(result.list, criterion) {
 lm.bs.preds <- with(result.list, pred.list[[which.min(result.mat[,2])]])
@@ -944,67 +761,69 @@ names(cancer.df[,c(lm.bs.preds)])
 present.bs.result(b.mse.list, "MSE")
 ```
 
-    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (MSE = 156.511)"
+    ## [1] "The best predictor set of 30 predictors, out of a max of 33, (MSE = 156.506)"
 
-    ##  [1] "incidence_rate"                 "med_income"                    
-    ##  [3] "pop_est2015"                    "poverty_percent"               
-    ##  [5] "median_age"                     "median_age_male"               
-    ##  [7] "median_age_female"              "avg_household_size"            
-    ##  [9] "percent_married"                "pct_no_hs18_24"                
-    ## [11] "pct_bach_deg18_24"              "pct_hs25_over"                 
-    ## [13] "pct_bach_deg25_over"            "pct_unemployed16_over"         
-    ## [15] "pct_private_coverage"           "pct_emp_priv_coverage"         
-    ## [17] "pct_public_coverage"            "pct_public_coverage_alone"     
-    ## [19] "pct_white"                      "pct_married_households"        
-    ## [21] "birth_rate"                     "pct_non_white"                 
-    ## [23] "binned_inc_point"               "study_quantile"                
-    ## [25] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
-    ## [27] "region"                         "imp_pct_employed16_over"       
-    ## [29] "imp_pct_private_coverage_alone"
+    ##  [1] "study_quantile"            "region"                   
+    ##  [3] "incidence_rate"            "med_income"               
+    ##  [5] "pop_est2015"               "poverty_percent"          
+    ##  [7] "median_age"                "median_age_male"          
+    ##  [9] "median_age_female"         "avg_household_size"       
+    ## [11] "percent_married"           "pct_no_hs18_24"           
+    ## [13] "pct_hs18_24"               "pct_bach_deg18_24"        
+    ## [15] "pct_hs25_over"             "pct_bach_deg25_over"      
+    ## [17] "pct_unemployed16_over"     "pct_private_coverage"     
+    ## [19] "pct_emp_priv_coverage"     "pct_public_coverage"      
+    ## [21] "pct_public_coverage_alone" "pct_white"                
+    ## [23] "pct_married_households"    "birth_rate"               
+    ## [25] "pct_non_white"             "binned_inc_ub"            
+    ## [27] "binned_inc_point"          "avg_deaths_yr_pop"        
+    ## [29] "avg_ann_count_pop"         "imp_pct_employed16_over"
 
 ``` r
 present.bs.result(b.aic.list, "AIC")
 ```
 
-    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (AIC = 19218.144)"
+    ## [1] "The best predictor set of 31 predictors, out of a max of 33, (AIC = 19220.398)"
 
-    ##  [1] "incidence_rate"                 "med_income"                    
-    ##  [3] "pop_est2015"                    "poverty_percent"               
-    ##  [5] "median_age"                     "median_age_male"               
-    ##  [7] "avg_household_size"             "percent_married"               
-    ##  [9] "pct_no_hs18_24"                 "pct_hs18_24"                   
-    ## [11] "pct_bach_deg18_24"              "pct_hs25_over"                 
-    ## [13] "pct_bach_deg25_over"            "pct_unemployed16_over"         
-    ## [15] "pct_private_coverage"           "pct_emp_priv_coverage"         
-    ## [17] "pct_public_coverage"            "pct_public_coverage_alone"     
-    ## [19] "pct_white"                      "pct_married_households"        
-    ## [21] "birth_rate"                     "pct_non_white"                 
-    ## [23] "binned_inc_point"               "study_quantile"                
-    ## [25] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
-    ## [27] "region"                         "imp_pct_employed16_over"       
-    ## [29] "imp_pct_private_coverage_alone"
+    ##  [1] "study_quantile"                 "region"                        
+    ##  [3] "incidence_rate"                 "med_income"                    
+    ##  [5] "pop_est2015"                    "poverty_percent"               
+    ##  [7] "median_age"                     "median_age_male"               
+    ##  [9] "avg_household_size"             "percent_married"               
+    ## [11] "pct_no_hs18_24"                 "pct_hs18_24"                   
+    ## [13] "pct_bach_deg18_24"              "pct_hs25_over"                 
+    ## [15] "pct_bach_deg25_over"            "pct_unemployed16_over"         
+    ## [17] "pct_private_coverage"           "pct_emp_priv_coverage"         
+    ## [19] "pct_public_coverage"            "pct_public_coverage_alone"     
+    ## [21] "pct_white"                      "pct_married_households"        
+    ## [23] "birth_rate"                     "pct_non_white"                 
+    ## [25] "binned_inc_lb"                  "binned_inc_ub"                 
+    ## [27] "binned_inc_point"               "avg_deaths_yr_pop"             
+    ## [29] "avg_ann_count_pop"              "imp_pct_employed16_over"       
+    ## [31] "imp_pct_private_coverage_alone"
 
 ``` r
 present.bs.result(b.bic.list, "BIC")
 ```
 
-    ## [1] "The best predictor set of 29 predictors, out of a max of 31, (BIC = 19414.005)"
+    ## [1] "The best predictor set of 31 predictors, out of a max of 33, (BIC = 19435.201)"
 
-    ##  [1] "incidence_rate"                 "med_income"                    
-    ##  [3] "pop_est2015"                    "poverty_percent"               
-    ##  [5] "median_age"                     "median_age_male"               
-    ##  [7] "median_age_female"              "avg_household_size"            
-    ##  [9] "percent_married"                "pct_no_hs18_24"                
-    ## [11] "pct_hs18_24"                    "pct_bach_deg18_24"             
-    ## [13] "pct_hs25_over"                  "pct_bach_deg25_over"           
-    ## [15] "pct_unemployed16_over"          "pct_private_coverage"          
-    ## [17] "pct_emp_priv_coverage"          "pct_public_coverage"           
-    ## [19] "pct_public_coverage_alone"      "pct_white"                     
-    ## [21] "pct_married_households"         "birth_rate"                    
-    ## [23] "pct_non_white"                  "study_quantile"                
-    ## [25] "avg_deaths_yr_pop"              "avg_ann_count_pop"             
-    ## [27] "region"                         "imp_pct_employed16_over"       
-    ## [29] "imp_pct_private_coverage_alone"
+    ##  [1] "study_quantile"                 "region"                        
+    ##  [3] "incidence_rate"                 "med_income"                    
+    ##  [5] "pop_est2015"                    "poverty_percent"               
+    ##  [7] "median_age"                     "median_age_male"               
+    ##  [9] "avg_household_size"             "percent_married"               
+    ## [11] "pct_no_hs18_24"                 "pct_hs18_24"                   
+    ## [13] "pct_bach_deg18_24"              "pct_hs25_over"                 
+    ## [15] "pct_bach_deg25_over"            "pct_unemployed16_over"         
+    ## [17] "pct_private_coverage"           "pct_emp_priv_coverage"         
+    ## [19] "pct_public_coverage"            "pct_public_coverage_alone"     
+    ## [21] "pct_white"                      "pct_married_households"        
+    ## [23] "birth_rate"                     "pct_non_white"                 
+    ## [25] "binned_inc_lb"                  "binned_inc_ub"                 
+    ## [27] "binned_inc_point"               "avg_deaths_yr_pop"             
+    ## [29] "avg_ann_count_pop"              "imp_pct_employed16_over"       
+    ## [31] "imp_pct_private_coverage_alone"
 
 ``` r
 #Pull the indices for the selected models, for later comparison
@@ -1024,8 +843,58 @@ Ridge and Lasso Functions for Comparison
 #Initialize Sample Size
 sampleSize <- nrow(cancer.df)
 
-#Initialize lambda grid
-lambda.grid <- 10^seq(-3,1,length = 100)
+#Initialize lambda grids
+lambda.grid.lasso <- 10^seq(-3,0.5,length = 300)
+lambda.grid.ridge <- 10^seq(-3,0.5,length = 300)
+
+
+#Lambda optimization Ridge
+ridge.opt <- function(data, grid = lambda.grid, response = "target_death_rate"){
+    #Snag the index for the matrices  
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[ ,index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(., data)
+  X <- X[,-1]
+  
+  #Lambda optimize
+  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = grid, family = "gaussian")
+  cv.ridge$lambda.min
+}
+
+#lambda.opt.ridge <- ridge.opt(cancer.df, grid = lambda.grid)
+
+#Lambda optimization Lasso
+lasso.opt <- function(data, grid = lambda.grid, response = "target_death_rate"){  
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[, index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(.,data)
+  X <- X[,-1]  
+  
+  #Optimize Lambda
+  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = grid, family = "gaussian")
+  cv.lasso$lambda.min
+}
+
+#lambda.opt.lasso <- lasso.opt(cancer.df, grid = lambda.grid.lasso)
 
 ridge <- function(data, response = "target_death_rate") {
 
@@ -1045,7 +914,7 @@ ridge <- function(data, response = "target_death_rate") {
   X <- X[,-1]
   
   #Lambda optimize
-  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = lambda.grid, family = "gaussian")
+  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = lambda.grid.ridge, family = "gaussian")
   lambda.opt.ridge <- cv.ridge$lambda.min
   
   #Return model
@@ -1070,9 +939,9 @@ lasso <- function(data, response = "target_death_rate", print = FALSE) {
   X <- X[,-1]  
   
   #Optimize Lambda
-  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.grid, family = "gaussian")
+  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.grid.lasso, family = "gaussian")
   lambda.opt.lasso <- cv.lasso$lambda.min
-  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.opt.lasso,family = "gaussian")
+  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.opt.lasso, family = "gaussian")
   #Print if true
   if (isTRUE(print)) {
   coef.lasso <- coef(mod.lasso)[,1]
@@ -1143,6 +1012,76 @@ ridgeCV <- function(data.df, kfolds = 10, response){
   mean(error) #return kfold mean mse
 }
 
+lasso1 <- cancer.df %>% lasso(., print = TRUE)
+```
+
+    ## [1] "The Lasso method selected the variables:"
+    ##  [1] "(Intercept)"                    "study_quantileLow"             
+    ##  [3] "study_quantileModerate"         "study_quantileHigh"            
+    ##  [5] "study_quantileVery High"        "region2"                       
+    ##  [7] "region3"                        "region4"                       
+    ##  [9] "incidence_rate"                 "med_income"                    
+    ## [11] "pop_est2015"                    "poverty_percent"               
+    ## [13] "median_age"                     "median_age_male"               
+    ## [15] "median_age_female"              "avg_household_size"            
+    ## [17] "percent_married"                "pct_no_hs18_24"                
+    ## [19] "pct_hs18_24"                    "pct_bach_deg18_24"             
+    ## [21] "pct_hs25_over"                  "pct_bach_deg25_over"           
+    ## [23] "pct_unemployed16_over"          "pct_private_coverage"          
+    ## [25] "pct_emp_priv_coverage"          "pct_public_coverage"           
+    ## [27] "pct_public_coverage_alone"      "pct_white"                     
+    ## [29] "pct_married_households"         "birth_rate"                    
+    ## [31] "pct_non_white"                  "binned_inc_ub"                 
+    ## [33] "binned_inc_point"               "avg_deaths_yr_pop"             
+    ## [35] "avg_ann_count_pop"              "imp_pct_employed16_over"       
+    ## [37] "imp_pct_private_coverage_alone"
+
+``` r
+coef(lasso1)
+```
+
+    ## 38 x 1 sparse Matrix of class "dgCMatrix"
+    ##                                           s0
+    ## (Intercept)                    173.556341450
+    ## study_quantileLow                1.213665996
+    ## study_quantileModerate          -0.224813706
+    ## study_quantileHigh              -0.796857060
+    ## study_quantileVery High          0.870495819
+    ## region2                          9.369958032
+    ## region3                          1.449125968
+    ## region4                          1.954521579
+    ## incidence_rate                   4.681797720
+    ## med_income                       1.873110365
+    ## pop_est2015                     -0.331179676
+    ## poverty_percent                  0.021387720
+    ## median_age                       0.006170821
+    ## median_age_male                 -3.198597245
+    ## median_age_female              -11.766377976
+    ## avg_household_size               0.083155582
+    ## percent_married                 -2.079797713
+    ## pct_no_hs18_24                   0.573131394
+    ## pct_hs18_24                      2.505409210
+    ## pct_bach_deg18_24                0.068947489
+    ## pct_hs25_over                    1.019770991
+    ## pct_bach_deg25_over             -1.813058819
+    ## pct_unemployed16_over            3.676746252
+    ## pct_private_coverage            -1.133394746
+    ## pct_emp_priv_coverage            3.365620796
+    ## pct_public_coverage            -10.647103233
+    ## pct_public_coverage_alone        9.319145184
+    ## pct_white                       -2.699362218
+    ## pct_married_households           0.869103839
+    ## birth_rate                      -0.783934737
+    ## pct_non_white                   -2.861043272
+    ## binned_inc_lb                    .          
+    ## binned_inc_ub                    1.910714125
+    ## binned_inc_point                 0.002260304
+    ## avg_deaths_yr_pop               29.465776923
+    ## avg_ann_count_pop               -1.378008422
+    ## imp_pct_employed16_over         -1.735958106
+    ## imp_pct_private_coverage_alone   0.789147857
+
+``` r
 #test - lasso, ridge - all good
 #ridge(data = cancer.df)
 #lasso(data = cancer.df, print = TRUE)
@@ -1151,13 +1090,13 @@ ridgeCV <- function(data.df, kfolds = 10, response){
 lassoCV(cancer.df, 10, "target_death_rate")
 ```
 
-    ## [1] 157.6156
+    ## [1] 158.8524
 
 ``` r
 ridgeCV(cancer.df, 10, "target_death_rate")
 ```
 
-    ## [1] 156.6493
+    ## [1] 158.1162
 
 Model Comparison with Iterative 10-Fold CV
 ==========================================
@@ -1172,6 +1111,8 @@ nrep <- 100
 #State is a problem, need to make a region variable
 library(modelr)
 cv.df <- cancer.df %>%
+  mutate(median_age_all_gender = (median_age_male + median_age_female)/2) %>% 
+  mutate(south = ifelse(region == "South", 1, 0)) %>%
          crossv_mc(., nrep) %>%
   mutate(train = map(train, as.tibble),
          test = map(test, as.tibble)) %>%
@@ -1182,7 +1123,15 @@ cv.df <- cancer.df %>%
          bs.aic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.aic.preds, 1)])),
          bs.bic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.bic.preds, 1)])),
          lasso.lm  = map(train, ~lasso(data = .x)),
-         ridge.lm  = map(train, ~ridge(data = .x))) %>%
+         ridge.lm  = map(train, ~ridge(data = .x)),
+         auto.back  = map(train, ~lm(target_death_rate ~ pct_white + pct_hs25_over + 
+          imp_pct_employed16_over + pct_private_coverage + pct_public_coverage + 
+          avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile + 
+          median_age_all_gender + south, data = .x)),
+         auto.front  = map(train, ~lm(target_death_rate ~ pct_white + pct_hs25_over +
+          imp_pct_employed16_over + pct_private_coverage + pct_public_coverage + 
+          avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile +
+          median_age_all_gender + south + avg_household_size, data = .x))) %>%
   mutate(fs.mse.mse = map2_dbl(fs.mse.lm, test, ~mse(model = .x, data = .y)),
          fs.aic.mse = map2_dbl(fs.aic.lm, test, ~mse(model = .x, data = .y)),
          fs.bic.mse = map2_dbl(fs.bic.lm, test, ~mse(model = .x, data = .y)),
@@ -1190,7 +1139,9 @@ cv.df <- cancer.df %>%
          bs.aic.mse = map2_dbl(bs.aic.lm, test, ~mse(model = .x, data = .y)),
          bs.bic.mse = map2_dbl(bs.bic.lm, test, ~mse(model = .x, data = .y)),
          lasso.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
-         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)))
+         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
+         auto.front.mse = map2_dbl(auto.back, test, ~mse(model = .x, data = .y)),
+         auto.back.mse = map2_dbl(auto.front, test, ~mse(model = .x, data = .y)))
 ```
 
 Visualize Model Comparison
@@ -1207,7 +1158,7 @@ violin.mse <- cv.df %>%
   geom_violin(aes(fill = model), trim = FALSE, alpha = 0.3) + 
   geom_boxplot(width = 0.25) +
   labs(
-    y = "Root Mean Sqaure Error",
+    y = "CV Mean Sqaure Error",
     x = "Model",
     title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
   ) +
@@ -1227,8 +1178,8 @@ density.mse <- cv.df %>%
   geom_density(position = "stack", alpha = 0.3) + 
   #geom_boxplot(width = 0.25) +
   labs(
-    y = "Root Mean Sqaure Error",
-    x = "Model",
+    y = "Density",
+    x = "CV Mean Square Error",
     title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
   ) +
   viridis::scale_fill_viridis(
@@ -1245,7 +1196,7 @@ density.mse <- cv.df %>%
     discrete = TRUE)
 ```
 
-<img src="Q_subset_selection_alg_files/figure-markdown_github/unnamed-chunk-13-1.png" width="90%" style="display: block; margin: auto;" /><img src="Q_subset_selection_alg_files/figure-markdown_github/unnamed-chunk-13-2.png" width="90%" style="display: block; margin: auto;" />
+<img src="Q_subset_selection_alg_files/figure-markdown_github/unnamed-chunk-15-1.png" width="90%" style="display: block; margin: auto;" /><img src="Q_subset_selection_alg_files/figure-markdown_github/unnamed-chunk-15-2.png" width="90%" style="display: block; margin: auto;" />
 
 *This will take a long time to run*
 

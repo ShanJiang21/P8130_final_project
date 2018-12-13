@@ -25,7 +25,6 @@ library(purrr)
 library(koRpus)
 library(modelr)
 library(glmnet)
-library(readr)
 library(purrr)
 library(tree)
 library(randomForest)
@@ -111,17 +110,18 @@ cancer.df <- cancer_raw %>%    #Remove Rows with > 20% missing
 
 ######TO avoid singular matrixes for our model fits, we need remove highly correlated and/or direct linear combos
 ###### Also lets make the response index 1, makes everything easier
+
 cancer.df <- cancer.df %>%
-  dplyr::select(-c(avg_deaths_per_year, avg_ann_count, pct_black, pct_asian, pct_other_race, binned_inc_lb, binned_inc_ub)) %>%
-  dplyr::select(target_death_rate, everything())
+  dplyr::select(-c(avg_deaths_per_year, avg_ann_count, pct_black, pct_asian, pct_other_race)) %>%
+  dplyr::select(target_death_rate, study_quantile, region, everything())
+
 
 #mostly need to decide between white/non-white or all race % AND binned_inc_lb, ub or median income
 ```
 
-Note aboute study_quantile breakdown (0 vs. numeric quantile). May be better as binary yes/no? But then we lose info.
-```{r}
+```{r echo = FALSE, include = FALSE}
+#Note aboute study_quantile breakdown (0 vs. numeric quantile). May be better as binary yes/no? But then we lose info.
 cancer.df %>% group_by(study_quantile) %>% summarize(n = n()) %>% knitr::kable()
-
 ```
 
 #Imputing Values with less than 20% missing (two variables)
@@ -214,11 +214,12 @@ cancer.df <- cancer.df %>%
 
 
 See generally what the optimal number of preds in an lm() ought to be (CP, adj$R^2$, BIC (similar to AIC)).
-```{r fig.height = 6, warning = FALSE}
+```{r fig.height = 6}
 #Summary of models for each size (one model per size)
 #Set max number of predictors
 nvmax <- ncol(cancer.df) - 1
 reg.subsets <- cancer.df %>% 
+  dplyr::select(-binned_inc_point) %>% #Remove linear dependency (average of lower, upper bound)
   regsubsets(target_death_rate ~ ., data = ., really.big = FALSE, nvmax = nvmax)
 rs <- summary(reg.subsets)
 
@@ -231,11 +232,17 @@ r.df <- tibble(
   step = 1:nvmax
 )
 
+#Grab max r^2 pred number
+max.r2 <- with(r.df, which.max(adjr2))
+
+#Grab min bic pred number
+min.bic <- with(r.df, which.min(bic))
+
 cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
  # geom_point(aes(x = preds, step),color = "black",size = 0.5) +
-  geom_line(aes(x = preds, step), size = 1, color = "red") +
+  geom_line(aes(x = preds, step), size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "CP Criterion",
@@ -247,6 +254,7 @@ cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
 adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+  geom_vline(xintercept = max.r2, size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "Adjusted R^2",
@@ -256,6 +264,7 @@ adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
 bic.plot <- r.df %>% ggplot(aes(x = preds, y = bic, size = bic)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
+  geom_vline(xintercept = min.bic, size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "Bayesian Information Criterion",
@@ -267,6 +276,46 @@ bic.plot <- r.df %>% ggplot(aes(x = preds, y = bic, size = bic)) +
 ```
 
 Based on the plots above, $CP$ criterion in the upper left with $p \leq CP$ constraint in red, that somewhere around a 25-27 predictor model ought to be optimal. With respect to adjusted $R^2$, it appears as though we reach a converging maximum starting around 20 and negligible increase after, where additional predictors have diminishing marginal return. Lastly, BIC is more conservative (penalizing more strongly for more predictors) and seems to suggest between a 15-20 predictor model (closer to 20). This may inform our subset selection criterion. 
+
+#Feature Selection Lasso
+
+Inputes are data (cancer.df), response (default target_death_rate), lambda (penalty, default = 1, higher penalty removes more coefficients), print(logical whether or not to print the results)
+```{r}
+lasso.feature.removal <- function(data = cancer.df, response = "target_death_rate", lambda = 1, print = TRUE) {
+  
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[, index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(.,data)
+  X <- X[,-1]  
+  #Fit Model
+  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda, family = "gaussian")
+  #Print if true
+  if (isTRUE(print)) {
+  coef.lasso   <- coef(mod.lasso)[,1]
+  remove.index <- which(coef.lasso == 0)
+  keep.index   <- which(coef.lasso != 0)
+                        
+    print(sprintf("Lambda = %f : Lasso method removed %i variables:", lambda, length(remove.index)))
+    print(paste(names(remove.index)))
+    print(sprintf("Lambda = %f : Lasso method selected %i variables:",lambda, length(keep.index)))
+    print(paste(names(keep.index)))
+    cat("\n")
+  }
+ # return(names(which(coef.lasso == 0)))
+}
+
+map(.x = c(0.01, .1, 0.5, 1, 2), ~lasso.feature.removal(cancer.df, lambda = .x))
+```
 
 
 #K-fold cross validation funciton for subset selecion (MSE, AIC, BIC criterion)
@@ -315,7 +364,23 @@ bicCV <- function(data.df, kfolds = 10){
 ```
 
 
-#Forward Subset Selection with k-Fold CV and MSE criterion
+
+#1. Models 
+
+Scale continuous predictors
+```{r}
+cancer.df <- bind_cols(
+    cancer.df %>%
+    dplyr::select(c(target_death_rate:region)),
+    cancer.df %>%
+    dplyr::select(-c(target_death_rate:region)) %>%
+    scale() %>% as.tibble()
+)
+  
+
+```
+
+##Forward Subset Selection with k-Fold CV and MSE criterion
 
 Function to run the subset algorithm, it will output the variable selection process so you visualize how it works. Comment out the set seed to get true variability in the subsets, only leave it in for reproducibility.
 
@@ -397,8 +462,8 @@ while (length(currPreds) < maxPreds) {
   ##Take out the pred you just added from consideration
   availPreds <- setdiff(allPreds,currPreds)
   ## Print stuff out for debugging and attention-grabbing
-  print(sprintf("Iteration: %i Predictor Added: %s %s Value: %s",i, names(sub.cancer.df[,bestPred]), criterion, bestError))
-  print(currPreds)
+  #print(sprintf("Iteration: %i Predictor Added: %s %s Value: %s",i, names(sub.cancer.df[,bestPred]), criterion, bestError))
+  #print(currPreds)
   result.mat[i,] <- c(bestPred,bestError)         #You can also comment out all print() later, it's just to watch the algorithm work
   pred.list[[i]] <- currPreds
   i <- i + 1
@@ -537,8 +602,8 @@ while (length(currPreds) >= minPreds) {
   minError <- c(minError, bestError)
   availPreds <- currPreds
   ## Print stuff out for debugging and attention-grabbing
-  print(sprintf("Predictor Removed: %s  %s Value: %s",names(sub.cancer.df[,worstPred]), criterion, bestError))
-  print(currPreds)
+  #print(sprintf("Predictor Removed: %s  %s Value: %s",names(sub.cancer.df[,worstPred]), criterion, bestError))
+  #print(currPreds)
   result.mat[i,] <- c(worstPred,bestError)   #All print() can be commented out at any time, just to visualize alg. process
   pred.list[[i]] <- currPreds
   
@@ -585,8 +650,58 @@ Repeat to get a good feel for which preds get selected most often (note this wil
 #Initialize Sample Size
 sampleSize <- nrow(cancer.df)
 
-#Initialize lambda grid
-lambda.grid <- 10^seq(-3,1,length = 100)
+#Initialize lambda grids
+lambda.grid.lasso <- 10^seq(-3,0.5,length = 300)
+lambda.grid.ridge <- 10^seq(-3,0.5,length = 300)
+
+
+#Lambda optimization Ridge
+ridge.opt <- function(data, grid = lambda.grid, response = "target_death_rate"){
+    #Snag the index for the matrices  
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[ ,index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(., data)
+  X <- X[,-1]
+  
+  #Lambda optimize
+  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = grid, family = "gaussian")
+  cv.ridge$lambda.min
+}
+
+#lambda.opt.ridge <- ridge.opt(cancer.df, grid = lambda.grid)
+
+#Lambda optimization Lasso
+lasso.opt <- function(data, grid = lambda.grid, response = "target_death_rate"){  
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  
+  #Response 
+  Y <- as.matrix(data[, index])
+  
+  #Design matrix
+  X <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(.,data)
+  X <- X[,-1]  
+  
+  #Optimize Lambda
+  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = grid, family = "gaussian")
+  cv.lasso$lambda.min
+}
+
+#lambda.opt.lasso <- lasso.opt(cancer.df, grid = lambda.grid.lasso)
 
 ridge <- function(data, response = "target_death_rate") {
 
@@ -606,7 +721,7 @@ ridge <- function(data, response = "target_death_rate") {
   X <- X[,-1]
   
   #Lambda optimize
-  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = lambda.grid, family = "gaussian")
+  cv.ridge <- cv.glmnet(X,Y,alpha = 0,intercept = T, lambda = lambda.grid.ridge, family = "gaussian")
   lambda.opt.ridge <- cv.ridge$lambda.min
   
   #Return model
@@ -631,9 +746,9 @@ lasso <- function(data, response = "target_death_rate", print = FALSE) {
   X <- X[,-1]  
   
   #Optimize Lambda
-  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.grid, family = "gaussian")
+  cv.lasso <- cv.glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.grid.lasso, family = "gaussian")
   lambda.opt.lasso <- cv.lasso$lambda.min
-  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.opt.lasso,family = "gaussian")
+  mod.lasso <- glmnet(X,Y,alpha = 1,intercept = T,lambda = lambda.opt.lasso, family = "gaussian")
   #Print if true
   if (isTRUE(print)) {
   coef.lasso <- coef(mod.lasso)[,1]
@@ -704,6 +819,10 @@ ridgeCV <- function(data.df, kfolds = 10, response){
   mean(error) #return kfold mean mse
 }
 
+lasso1 <- cancer.df %>% lasso(., print = TRUE)
+
+coef(lasso1)
+
 #test - lasso, ridge - all good
 #ridge(data = cancer.df)
 #lasso(data = cancer.df, print = TRUE)
@@ -717,7 +836,7 @@ ridgeCV(cancer.df, 10, "target_death_rate")
 
 #Model Comparison with Iterative 10-Fold CV
 Takes a bit to run.
-```{r}
+```{r warning = FALSE}
 #Number of CV iterations
 nrep <- 100
 
@@ -725,6 +844,8 @@ nrep <- 100
 #State is a problem, need to make a region variable
 library(modelr)
 cv.df <- cancer.df %>%
+  mutate(median_age_all_gender = (median_age_male + median_age_female)/2) %>% 
+  mutate(south = ifelse(region == "South", 1, 0)) %>%
          crossv_mc(., nrep) %>%
   mutate(train = map(train, as.tibble),
          test = map(test, as.tibble)) %>%
@@ -735,7 +856,15 @@ cv.df <- cancer.df %>%
          bs.aic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.aic.preds, 1)])),
          bs.bic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(bs.bic.preds, 1)])),
          lasso.lm  = map(train, ~lasso(data = .x)),
-         ridge.lm  = map(train, ~ridge(data = .x))) %>%
+         ridge.lm  = map(train, ~ridge(data = .x)),
+         auto.back  = map(train, ~lm(target_death_rate ~ pct_white + pct_hs25_over + 
+          imp_pct_employed16_over + pct_private_coverage + pct_public_coverage + 
+          avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile + 
+          median_age_all_gender + south, data = .x)),
+         auto.front  = map(train, ~lm(target_death_rate ~ pct_white + pct_hs25_over +
+          imp_pct_employed16_over + pct_private_coverage + pct_public_coverage + 
+          avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile +
+          median_age_all_gender + south + avg_household_size, data = .x))) %>%
   mutate(fs.mse.mse = map2_dbl(fs.mse.lm, test, ~mse(model = .x, data = .y)),
          fs.aic.mse = map2_dbl(fs.aic.lm, test, ~mse(model = .x, data = .y)),
          fs.bic.mse = map2_dbl(fs.bic.lm, test, ~mse(model = .x, data = .y)),
@@ -743,7 +872,9 @@ cv.df <- cancer.df %>%
          bs.aic.mse = map2_dbl(bs.aic.lm, test, ~mse(model = .x, data = .y)),
          bs.bic.mse = map2_dbl(bs.bic.lm, test, ~mse(model = .x, data = .y)),
          lasso.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
-         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)))
+         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
+         auto.front.mse = map2_dbl(auto.back, test, ~mse(model = .x, data = .y)),
+         auto.back.mse = map2_dbl(auto.front, test, ~mse(model = .x, data = .y)))
 
 ```
 
@@ -759,7 +890,7 @@ violin.mse <- cv.df %>%
   geom_violin(aes(fill = model), trim = FALSE, alpha = 0.3) + 
   geom_boxplot(width = 0.25) +
   labs(
-    y = "Root Mean Sqaure Error",
+    y = "CV Mean Sqaure Error",
     x = "Model",
     title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
   ) +
@@ -779,8 +910,8 @@ density.mse <- cv.df %>%
   geom_density(position = "stack", alpha = 0.3) + 
   #geom_boxplot(width = 0.25) +
   labs(
-    y = "Root Mean Sqaure Error",
-    x = "Model",
+    y = "Density",
+    x = "CV Mean Square Error",
     title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
   ) +
   viridis::scale_fill_viridis(
