@@ -5,7 +5,6 @@ date: "12/14/2018"
 output: html_document
 ---
 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -18,6 +17,9 @@ library(leaps)
 # Import data
 cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
   janitor::clean_names() 
+
+## identify unique values 
+sum(duplicated(cancer_raw), na.rm = TRUE)
 
 dim(cancer_raw)
 head(cancer_raw)
@@ -98,6 +100,13 @@ cancer.clean =
 
 ## Variable Selection
 
+Add Scale to the model data for those non-categorical variable:
+
+```{r}
+
+```
+
+
 Automatic procedures:
 
 (1) Backward:
@@ -117,6 +126,7 @@ model_backward = step1
 ```
 
 (2) Forward:
+
 ```{r forward procedure}
 # check p-value for each predictor in SLR model
 fit1 = lm(target_death_rate ~ pct_white, data = cancer.clean)
@@ -206,4 +216,45 @@ tibble(
   theme_bw()
 ```
 
- 
+# Model Dignostics 
+
+
+---plots of our Model diagnostics
+
+o Heteroscedasticity, normality and multicollinearity
+o Functional form for continuous predictors
+• Outliers and missing values
+
+## Dignostic plots: stepwise
+
+```{r}
+par(mfrow = c(2,2))
+plot(model_backward)
+```
+
+## Dignostic plots: forward
+```{r}
+par(mfrow = c(2,2))
+plot(model_forward)
+```
+
+## Dignostic plots: stepwise
+```{r}
+par(mfrow = c(2,2))
+plot(model_stepwise)
+```
+
+Heteroscedasticity: The residuals vs. Fitted value informs a good value bounce around 0, and it indicates the assumptions are not violated for equal variance. 
+
+For both scaled data(only for continuous) and unscaled data, we found that there is no outliers in the data. 
+
+
+###  Multicollinearity
+
+```{r}
+car::vif(model_stepwise)
+```
+
+In our example, the highest VIF score for the predictor variable pct_public_coverage is not high (VIF = 2.648187). This might not be problematic.
+
+
