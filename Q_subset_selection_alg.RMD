@@ -254,7 +254,7 @@ cp.plot <- r.df %>% ggplot(aes(x = preds, y = cp, size = cp)) +
 adjr2.plot <- r.df %>% ggplot(aes(x = preds, y = adjr2, size = 1 - adjr2)) +
   geom_point(colour = "purple") +
   geom_line(alpha = 0.5, colour = "purple", size = 1.25) +
-  geom_vline(xintercept = max.r2, size = 1, linetype = 2, color = "red") +
+  geom_vline(xintercept = 18, size = 1, linetype = 2, color = "red") +
   labs(
     x = "Number of Preds",
     y = "Adjusted R^2",
@@ -314,7 +314,8 @@ lasso.feature.removal <- function(data = cancer.df, response = "target_death_rat
  # return(names(which(coef.lasso == 0)))
 }
 
-map(.x = c(0.01, .1, 0.5, 1, 2), ~lasso.feature.removal(cancer.df, lambda = .x))
+#Example Function for Feature Selection
+#map(.x = c(0.01, .1, 0.5, 1, 2), ~lasso.feature.removal(cancer.df, lambda = .x))
 ```
 
 
@@ -365,7 +366,7 @@ bicCV <- function(data.df, kfolds = 10){
 
 
 
-#1. Models 
+#1. Linear Models 
 
 Scale continuous predictors
 ```{r}
@@ -651,8 +652,8 @@ Repeat to get a good feel for which preds get selected most often (note this wil
 sampleSize <- nrow(cancer.df)
 
 #Initialize lambda grids
-lambda.grid.lasso <- 10^seq(-3,0.5,length = 300)
-lambda.grid.ridge <- 10^seq(-3,0.5,length = 300)
+lambda.grid.lasso <- 10^seq(-1,0.5,length = 100)
+lambda.grid.ridge <- 10^seq(-1,0.5,length = 100)
 
 
 #Lambda optimization Ridge
@@ -758,6 +759,35 @@ lasso <- function(data, response = "target_death_rate", print = FALSE) {
   return(mod.lasso)
 }
 
+glmnet.predict <- function(model, data, response = "target_death_rate") {
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  #Design matrix
+  X1 <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(., data)
+  X1 <- X1[,-1] 
+  return(predict(model, newx = X1, type = "response"))
+}
+
+glmnet.rmse <- function(model, data, response = "target_death_rate") {
+  #Snag the index for matrices
+  index <- which(names(data) == response)
+  #Design matrix
+  X1 <- data[ ,-index] %>%
+    names() %>% 
+    paste(., collapse = "+") %>%    
+    paste("~ ", .) %>%
+    formula() %>%
+    model.matrix(., data)
+  X1 <- X1[,-1] 
+  preds <- predict(model, newx = X1, type = "response")
+  return(with(data, sqrt(mean((target_death_rate - preds)^2))))
+}
+
 glmnet.mse <- function(model, data, response = "target_death_rate") {
   #Snag the index for matrices
   index <- which(names(data) == response)
@@ -819,9 +849,10 @@ ridgeCV <- function(data.df, kfolds = 10, response){
   mean(error) #return kfold mean mse
 }
 
-lasso1 <- cancer.df %>% lasso(., print = TRUE)
+#Test
+#lasso1 <- cancer.df %>% lasso(., print = TRUE)
 
-coef(lasso1)
+#coef(lasso1)
 
 #test - lasso, ridge - all good
 #ridge(data = cancer.df)
@@ -865,16 +896,16 @@ cv.df <- cancer.df %>%
           imp_pct_employed16_over + pct_private_coverage + pct_public_coverage + 
           avg_ann_count_pop + avg_deaths_yr_pop + med_income + study_quantile +
           median_age_all_gender + south + avg_household_size, data = .x))) %>%
-  mutate(fs.mse.mse = map2_dbl(fs.mse.lm, test, ~mse(model = .x, data = .y)),
-         fs.aic.mse = map2_dbl(fs.aic.lm, test, ~mse(model = .x, data = .y)),
-         fs.bic.mse = map2_dbl(fs.bic.lm, test, ~mse(model = .x, data = .y)),
-         bs.mse.mse = map2_dbl(bs.mse.lm, test, ~mse(model = .x, data = .y)),
-         bs.aic.mse = map2_dbl(bs.aic.lm, test, ~mse(model = .x, data = .y)),
-         bs.bic.mse = map2_dbl(bs.bic.lm, test, ~mse(model = .x, data = .y)),
-         lasso.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
-         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
-         auto.front.mse = map2_dbl(auto.back, test, ~mse(model = .x, data = .y)),
-         auto.back.mse = map2_dbl(auto.front, test, ~mse(model = .x, data = .y)))
+  mutate(fs.mse.mse = map2_dbl(fs.mse.lm, test, ~rmse(model = .x, data = .y)),
+         fs.aic.mse = map2_dbl(fs.aic.lm, test, ~rmse(model = .x, data = .y)),
+         fs.bic.mse = map2_dbl(fs.bic.lm, test, ~rmse(model = .x, data = .y)),
+         bs.mse.mse = map2_dbl(bs.mse.lm, test, ~rmse(model = .x, data = .y)),
+         bs.aic.mse = map2_dbl(bs.aic.lm, test, ~rmse(model = .x, data = .y)),
+         bs.bic.mse = map2_dbl(bs.bic.lm, test, ~rmse(model = .x, data = .y)),
+         lasso.mse  = map2_dbl( lasso.lm, test, ~glmnet.rmse(model = .x, data = .y)),
+         ridge.mse  = map2_dbl( lasso.lm, test, ~glmnet.rmse(model = .x, data = .y)),
+         auto.front.mse = map2_dbl(auto.back, test, ~rmse(model = .x, data = .y)),
+         auto.back.mse = map2_dbl(auto.front, test, ~rmse(model = .x, data = .y)))
 
 ```
 
@@ -890,9 +921,9 @@ violin.mse <- cv.df %>%
   geom_violin(aes(fill = model), trim = FALSE, alpha = 0.3) + 
   geom_boxplot(width = 0.25) +
   labs(
-    y = "CV Mean Sqaure Error",
+    y = "CV Root Mean Sqaure Error",
     x = "Model",
-    title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
+    title = sprintf("Model RMSE Comparison by 10-Fold CV: %i Iterations", nrep)
   ) +
   viridis::scale_fill_viridis(
     option = "magma",
@@ -911,8 +942,8 @@ density.mse <- cv.df %>%
   #geom_boxplot(width = 0.25) +
   labs(
     y = "Density",
-    x = "CV Mean Square Error",
-    title = sprintf("Model MSE Comparison by 10-Fold CV: %i Iterations", nrep)
+    x = "CV Root Mean Square Error",
+    title = sprintf("Model RMSE Comparison by 10-Fold CV: %i Iterations", nrep)
   ) +
   viridis::scale_fill_viridis(
     option = "magma",
@@ -931,6 +962,8 @@ density.mse <- cv.df %>%
 ```{r echo = FALSE}
   violin.mse
   density.mse
+  
+ # ggsave("final_rmse_models_1.png")
 
 ```
 
@@ -938,28 +971,186 @@ density.mse <- cv.df %>%
 
 
 
+##Aggregated Ensemble of Linear Models
+
+The alternative stepwise, p-value, and `library(leaps)` selected models consistently underperform at validation, and will be removed from consideration. Additonially, backwards `lm` selection by any criterion appears to be performing poorly after multiple 100 fold observations, and likewise will be removed from consideration. We will now create an ensemble linear model averaging the predictions of the remaining forward selected linear models to form our final `target_death_rate` predictions. 
 
 
+After further investigation, we think that removing the forward selected mse model will also be advantagous for our ensemble.
 
+Additionally, since forward AIC has so been so dominant, and forward BIC seems to more often be slightly better than lasso, and ridge always being slightly worse; we implement the following weighting scheme `w = c(1.1, 1.05, 0.95, 0.9)`; corresponding to AIC, BIC, Lasso, and Ridge respectively.
 
-*This will take a long time to run*
-```{r eval = FALSE, warning = FALSE}
-#Repeat if you want to
-#Number of repetitions
-len <- 10
-b.result.list <- list()
-
-#Repeat Subset Selection algorithm
-for (i in 1:len) {
-  b.result.list[[i]] <- b.subset(sub.cancer.df, minPreds = 30, nfolds = 5, "mse")
+```{r warning = FALSE}
+#Set up ensemble Functions
+lm.ensemble <- function(data) {
+     list(
+         fs.aic.lm = lm(target_death_rate ~ ., data = data[, c(fs.aic.preds, 1)]),
+         fs.bic.lm = lm(target_death_rate ~ ., data = data[, c(fs.bic.preds, 1)]),
+         lasso.lm  = lasso(data = data),
+         ridge.lm  = ridge(data = data)
+     )
 }
 
-#View the results
-for (i in 1:len) {
-present.bs.result(b.result.list[[i]], "MSE")
+
+
+
+predict.lm.ensemble <- function(model.list, data) {
+  pred.mat <- matrix(ncol = length(model.list), nrow = nrow(data))
+  for (i in 1:length(model.list)) {
+     ifelse(i <= 2, pred.mat[ ,i] <- predict(model.list[[i]], newdata = data, type = "response"),
+                    pred.mat[ ,i] <- glmnet.predict(model.list[[i]], data = data))
+  }
+  apply(pred.mat, 1, weighted.mean, w = c(1.5, 1, 0.8, 0.7)/4)
 }
 
-#See which vars seem to be selected most often, make a subjective call what subset you like best.
+rmse.lm.ensemble <- function(model.list, data) {
+  with(data, sqrt(mean((target_death_rate - predict.lm.ensemble(model.list, data))^2)))
+}
 
-#fs.lm <- lm(target_death_rate ~ ., data = cancer.df[,c(lm.fs.preds,1)])
+mse.lm.ensemble <- function(model.list, data) {
+  with(data, mean((target_death_rate - predict.lm.ensemble(model.list, data))^2))
+}
+
+#rmse.lm.ensemble(lm.ensemble(cancer.df), cancer.df)
+
+#Re-grid lambdas
+lambda.grid.lasso <- 10^seq(-1.25, 0.5,length = 200)
+lambda.grid.ridge <- 10^seq(-1.25, 0.5,length = 200)
+
+nrep <- 100
+cv.df <- cancer.df %>%
+         crossv_mc(., nrep) %>%
+  mutate(train = map(train, as.tibble),
+         test = map(test, as.tibble)) %>%
+  mutate(fs.aic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.aic.preds, 1)])),
+         fs.bic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.bic.preds, 1)])),
+         lasso.lm  = map(train, ~lasso(data = .x)),
+         ridge.lm  = map(train, ~ridge(data = .x)),
+         ensemble.lm = map(train, ~lm.ensemble(data = .x))) %>%
+  mutate(fs.aic.mse = map2_dbl(fs.aic.lm, test, ~rmse(model = .x, data = .y)),
+         fs.bic.mse = map2_dbl(fs.bic.lm, test, ~rmse(model = .x, data = .y)),
+         lasso.mse  = map2_dbl(lasso.lm, test, ~glmnet.rmse(model = .x, data = .y)),
+         ridge.mse  = map2_dbl(lasso.lm, test, ~glmnet.rmse(model = .x, data = .y)),
+         ensemble.mse = map2_dbl(ensemble.lm, test, ~rmse.lm.ensemble(model.list = .x, data = .y)))
+
+```
+
+
+
+
+#Visualize Model Comparison
+```{r}
+#Violin box plots
+violin.mse <- cv.df %>% 
+  dplyr::select(ends_with(".mse")) %>% 
+  gather(key = model, value = mse) %>% 
+  mutate(model = str_replace(model, "mse", ""),
+         model = fct_reorder(model, mse, .desc = FALSE, .fun = mean)) %>% 
+  ggplot(aes(x = model, y = mse)) + 
+  geom_violin(aes(fill = model), trim = FALSE, alpha = 0.3) + 
+  geom_boxplot(width = 0.25) +
+  labs(
+    y = "CV Root Mean Sqaure Error",
+    x = "Model",
+    title = sprintf("Model RMSE Comparison by 10-Fold CV: %i Iterations", nrep)
+  ) +
+  viridis::scale_fill_viridis(
+    option = "magma",
+    name = "MSE",
+    begin = 1,
+    end = 0,
+    discrete = TRUE) 
+
+density.mse <- cv.df %>%
+   dplyr::select(ends_with(".mse")) %>% 
+  gather(key = model, value = mse) %>% 
+  mutate(model = str_replace(model, ".mse", ""),
+         model = fct_reorder(model, mse, .desc = FALSE, .fun = mean)) %>% 
+  ggplot(aes(x = mse, colour = model, fill = model)) + 
+  geom_density(position = "stack", alpha = 0.3) + 
+  #geom_boxplot(width = 0.25) +
+  labs(
+    y = "Density",
+    x = "CV Root Mean Square Error",
+    title = sprintf("Model RMSE Comparison by 10-Fold CV: %i Iterations", nrep)
+  ) +
+  viridis::scale_fill_viridis(
+    option = "magma",
+    name = "MSE",
+    begin = 1,
+    end = 0,
+    discrete = TRUE) +
+    viridis::scale_colour_viridis(
+    option = "magma",
+    name = "MSE",
+    begin = 1,
+    end = 0,
+    discrete = TRUE)
+
+```
+
+```{r echo = FALSE}
+  violin.mse
+  density.mse
+  
+  #ggsave("ensemble_rmse_2.png") 
+```
+
+
+#Final Test, LOOCV with PRESS Criterion
+
+*no clue how long this is going to take to run
+```{r eval = FALSE}
+#Re-grid lambdas
+lambda.grid.lasso <- 10^seq(-1.25, 0.5,length = 100)
+lambda.grid.ridge <- 10^seq(-1.25, 0.5,length = 100)
+
+a <- Sys.time()
+#LOOCV
+#nrep <- 1
+loocv.df <- cancer.df %>%
+         crossv_kfold(., k = nrow(cancer.df)) %>%
+  mutate(train = map(train, as.tibble),
+         test = map(test, as.tibble)) %>%
+  mutate(fs.aic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.aic.preds, 1)])),
+         fs.bic.lm = map(train, ~lm(target_death_rate ~ ., data = .x[, c(fs.bic.preds, 1)])),
+         lasso.lm  = map(train, ~lasso(data = .x)),
+         ridge.lm  = map(train, ~ridge(data = .x)),
+         ensemble.lm = map(train, ~lm.ensemble(data = .x))) %>%
+  mutate(fs.aic.mse = map2_dbl(fs.aic.lm, test, ~mse(model = .x, data = .y)),
+         fs.bic.mse = map2_dbl(fs.bic.lm, test, ~mse(model = .x, data = .y)),
+         lasso.mse  = map2_dbl(lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
+         ridge.mse  = map2_dbl(lasso.lm, test, ~glmnet.mse(model = .x, data = .y)),
+         ensemble.mse = map2_dbl(ensemble.lm, test, ~mse.lm.ensemble(model.list = .x, data = .y)))
+b <- Sys.time()
+(c <- b - a)
+
+loocv.df$fs.aic.mse
+
+unscaled.cancer.df <- bind_cols(
+    cancer.df %>%
+    dplyr::select(c(target_death_rate:region)),
+    cancer.df %>%
+    dplyr::select(-c(target_death_rate:region)) %>%
+    DMwR::unscale(vals = ., norm.data = .) %>% as.tibble()
+)
+
+
+#Unscale for Diagnostic Assumptions
+unscaled.cancer.df <- cancer.df
+
+#
+for(i in 1:29) {
+  unscaled.cancer.df[ ,i + 3] <- unscaled.cancer.df[ ,i + 3]*attr(cancer.df$incidence_rate, "scaled:scale")[i] + attr(cancer.df$incidence_rate, "scaled:center")[i]
+}
+
+
+#Unscale diagnostic plots
+#par( mfrow = c(2,2))
+plot(lm(target_death_rate ~ ., data = unscaled.cancer.df[, c(fs.aic.preds, 1)]))
+
+#Scaled Diagnostic, unappreciably different
+plot(lm(target_death_rate ~ ., data = cancer.df[, c(fs.aic.preds, 1)]))
+
+
 ```
