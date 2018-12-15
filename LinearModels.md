@@ -3,8 +3,7 @@ Linear Models
 Jieqi Tu (jt3098)
 12/11/2018
 
-Import and tidy data
---------------------
+## Import and tidy data
 
 ``` r
 # Import data
@@ -15,9 +14,6 @@ cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>%
     ## Parsed with column specification:
     ## cols(
     ##   .default = col_double(),
-    ##   avgDeathsPerYear = col_integer(),
-    ##   medIncome = col_integer(),
-    ##   popEst2015 = col_integer(),
     ##   binnedInc = col_character(),
     ##   Geography = col_character()
     ## )
@@ -36,14 +32,14 @@ head(cancer_raw)
 
     ## # A tibble: 6 x 34
     ##   avg_ann_count avg_deaths_per_… target_death_ra… incidence_rate med_income
-    ##           <dbl>            <int>            <dbl>          <dbl>      <int>
+    ##           <dbl>            <dbl>            <dbl>          <dbl>      <dbl>
     ## 1          1397              469             165.           490.      61898
     ## 2           173               70             161.           412.      48127
     ## 3           102               50             175.           350.      49348
     ## 4           427              202             195.           430.      44243
     ## 5            57               26             144.           350.      49955
     ## 6           428              152             176            505.      52313
-    ## # ... with 29 more variables: pop_est2015 <int>, poverty_percent <dbl>,
+    ## # ... with 29 more variables: pop_est2015 <dbl>, poverty_percent <dbl>,
     ## #   study_per_cap <dbl>, binned_inc <chr>, median_age <dbl>,
     ## #   median_age_male <dbl>, median_age_female <dbl>, geography <chr>,
     ## #   avg_household_size <dbl>, percent_married <dbl>, pct_no_hs18_24 <dbl>,
@@ -243,8 +239,7 @@ cancer.clean =
 # Select variables that we are interested in
 ```
 
-Variable Selection
-------------------
+## Variable Selection
 
 Automatic procedures: (1) Backward:
 
@@ -336,7 +331,9 @@ summary(step1)
 model_backward = step1
 ```
 
-1.  Forward:
+2)  Forward:
+
+<!-- end list -->
 
 ``` r
 # check p-value for each predictor in SLR model
@@ -691,7 +688,9 @@ tidy(step12)
 model_forward = step12
 ```
 
-1.  stepwise procedure
+3)  stepwise procedure
+
+<!-- end list -->
 
 ``` r
 # use stepwise function to choose the best subsets
@@ -785,4 +784,4 @@ tibble(
   theme_bw()
 ```
 
-![](LinearModels_files/figure-markdown_github/test-based%20procedures-1.png)
+![](LinearModels_files/figure-gfm/test-based%20procedures-1.png)<!-- -->
