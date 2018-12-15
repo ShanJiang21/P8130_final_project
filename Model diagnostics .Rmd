@@ -1,9 +1,3 @@
----
-title: "Model Diagnostics"
-author: "Shan Jiang"
-date: "12/14/2018"
-output: html_document
----
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -17,9 +11,6 @@ library(leaps)
 # Import data
 cancer_raw = readr::read_csv("./Data/Cancer_Registry.csv") %>% 
   janitor::clean_names() 
-
-## identify unique values 
-sum(duplicated(cancer_raw), na.rm = TRUE)
 
 dim(cancer_raw)
 head(cancer_raw)
@@ -100,17 +91,8 @@ cancer.clean =
 
 ## Variable Selection
 
-Add Scale to the model data for those non-categorical variable:
-
-```{r}
-
-```
-
-
 Automatic procedures:
-
 (1) Backward:
-
 ```{r backward procedure}
 mult.fit = lm(target_death_rate ~ ., data = cancer.clean)
 summary(mult.fit)
@@ -126,9 +108,8 @@ model_backward = step1
 ```
 
 (2) Forward:
-
 ```{r forward procedure}
-# check p-value for each predictor in SLR model
+# check p-value for each predictor in MLR model
 fit1 = lm(target_death_rate ~ pct_white, data = cancer.clean)
 tidy(fit1)
 fit2 = lm(target_death_rate ~ pct_hs25_over, data = cancer.clean)
@@ -201,9 +182,9 @@ model_stepwise = lm(target_death_rate ~ pct_white + pct_hs25_over +
 Test-based procedures:
 ```{r test-based procedures}
 # generate test results and plot
-criteria_results <- (leaps::regsubsets(data = cancer.clean, target_death_rate ~.) %>% summary())
+criteria_results <- (leaps::regsubsets(data = cancer.clean, target_death_rate ~., nvmax = 12) %>% summary())
 tibble(
-  n_pred = c(1:8),
+  n_pred = c(1:12),
   "Cp" = criteria_results$cp,
   "RSQ" = criteria_results$rsq,
   "RSS" = criteria_results$rss,
@@ -216,14 +197,12 @@ tibble(
   theme_bw()
 ```
 
+
+
 # Model Dignostics 
 
 
----plots of our Model diagnostics
-
-o Heteroscedasticity, normality and multicollinearity
-o Functional form for continuous predictors
-• Outliers and missing values
+* plots of our Model diagnostics
 
 ## Dignostic plots: stepwise
 
@@ -233,6 +212,7 @@ plot(model_backward)
 ```
 
 ## Dignostic plots: forward
+
 ```{r}
 par(mfrow = c(2,2))
 plot(model_forward)
@@ -242,7 +222,12 @@ plot(model_forward)
 ```{r}
 par(mfrow = c(2,2))
 plot(model_stepwise)
+
 ```
+
+o Heteroscedasticity, normality and multicollinearity
+o Functional form for continuous predictors
+• Outliers and missing values
 
 Heteroscedasticity: The residuals vs. Fitted value informs a good value bounce around 0, and it indicates the assumptions are not violated for equal variance. 
 

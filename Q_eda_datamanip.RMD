@@ -247,7 +247,7 @@ dim(cancer.df)
 
 
 
-#PCA Analysis for Variable Selection
+## PCA Analysis for Variable Selection
 
 *Plot is a bit messy, take subsets of the data and repeat
 

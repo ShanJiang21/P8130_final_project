@@ -115,7 +115,7 @@ model_backward = step1
 
 (2) Forward:
 ```{r forward procedure}
-# check p-value for each predictor in SLR model
+# check p-value for each predictor in MLR model
 fit1 = lm(target_death_rate ~ pct_white, data = cancer.clean)
 tidy(fit1)
 fit2 = lm(target_death_rate ~ pct_hs25_over, data = cancer.clean)
