@@ -3,8 +3,8 @@ title: "Group 13 - Final Project Code Documentation"
 author: "Jessica Flynn, Shan Jiang,  Quinton Neville,  Jieqi Tu"
 date: "12/16/2018"
 output:
-  github_document
-  #pdf_document: default
+  #github_document
+  pdf_document: default
   #html_document: default
   #word_document: default
 ---
@@ -41,6 +41,7 @@ library(e1071)
 library(leaps)
 library(broom)
 library(modelr)
+library(car)
 
 
 #Controlling figure output in markdown
@@ -1019,8 +1020,6 @@ density.mse <- cv.df %>%
 ```{r echo = FALSE}
   violin.mse
   density.mse
-  
-  ggsave("final_comp_k300_2")
 ```
 
 
@@ -1121,11 +1120,11 @@ par(mfrow = c(2,2))
 plot(lm(target_death_rate ~ ., data = unscaled.cancer.df[, c(fs.aic.preds, 1)]))
 ```
 
-```{echo = FALSE, eval = FALSE}
-#Scaled Diagnostic, unappreciably different
-par(mfrow = c(2,2))
-plot(lm(target_death_rate ~ ., data = cancer.df[, c(fs.aic.preds, 1)]))
 
+###  Multicollinearity
+
+```{r}
+car::vif(final.model)
 ```
 
 

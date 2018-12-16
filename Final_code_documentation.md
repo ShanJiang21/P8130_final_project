@@ -89,13 +89,13 @@ Below is a summary table of all continuous variables, including the response.
 
 Below is a count of the categories of the per capita number of cancer-related clinical trials per county.
 
-| study\_quantile |  Count|
-|:----------------|------:|
-| None            |   1931|
-| Low             |    279|
-| Moderate        |    279|
-| High            |    279|
-| Very High       |    279|
+| study\_quantile |  Count|  Percentage|
+|:----------------|------:|-----------:|
+| None            |   1931|   0.6670121|
+| Low             |    279|   0.0963731|
+| Moderate        |    279|   0.0963731|
+| High            |    279|   0.0963731|
+| Very High       |    279|   0.0963731|
 
 Below is the number and percentage of observations from the Southern United States and elsewhere.
 
@@ -111,13 +111,13 @@ cancer_raw %>%
   ggplot(aes(x = target_death_rate)) + 
     geom_histogram(aes(y = ..density..),  
                    binwidth = 2, colour = "black", fill = "white") +
-    geom_density(alpha = .1, fill = "#FF6666") +
+    geom_density(alpha = .2, fill = "purple") +
     geom_vline(aes(xintercept = mean(target_death_rate, na.rm = T)),   # Ignore NA values for mean
                color = "red", linetype = "dashed", size = 1) + # Overlay with transparent density plot
   labs(
     x = "Per Capita Deaths from Cancer",
     y = "Density",
-    title = "Density of Per Capita Deaths from Cancer"
+    title = "Distribution of Per Capita Deaths from Cancer"
   )
 ```
 
@@ -547,19 +547,19 @@ print(names(cancer.df[,c(lm.fs.preds)]))
 present.fs.result(f.mse.list, "MSE")
 ```
 
-    ## [1] "The best predictor set of 11 predictors, out of a max of 12, (MSE = 206.841)"
+    ## [1] "The best predictor set of 11 predictors, out of a max of 12, (MSE = 208.002)"
     ##  [1] "avg_deaths_yr_pop"     "median_age_all_gender"
     ##  [3] "south"                 "pct_hs25_over"        
     ##  [5] "med_income"            "pct_employed16_over"  
-    ##  [7] "pct_private_coverage"  "avg_ann_count_pop"    
-    ##  [9] "study_quantile"        "pct_white"            
+    ##  [7] "pct_private_coverage"  "study_quantile"       
+    ##  [9] "avg_ann_count_pop"     "pct_white"            
     ## [11] "avg_household_size"
 
 ``` r
 present.fs.result(f.aic.list, "AIC")
 ```
 
-    ## [1] "The best predictor set of 11 predictors, out of a max of 12, (AIC = 21286.252)"
+    ## [1] "The best predictor set of 11 predictors, out of a max of 12, (AIC = 21286.058)"
     ##  [1] "avg_deaths_yr_pop"     "median_age_all_gender"
     ##  [3] "south"                 "pct_hs25_over"        
     ##  [5] "med_income"            "pct_employed16_over"  
@@ -571,7 +571,7 @@ present.fs.result(f.aic.list, "AIC")
 present.fs.result(f.bic.list, "BIC")
 ```
 
-    ## [1] "The best predictor set of 9 predictors, out of a max of 12, (BIC = 21369.901)"
+    ## [1] "The best predictor set of 9 predictors, out of a max of 12, (BIC = 21369.171)"
     ## [1] "avg_deaths_yr_pop"     "median_age_all_gender" "south"                
     ## [4] "pct_hs25_over"         "med_income"            "pct_employed16_over"  
     ## [7] "pct_private_coverage"  "avg_ann_count_pop"     "pct_white"
@@ -692,12 +692,12 @@ names(cancer.df[,c(lm.bs.preds)])
 present.bs.result(b.mse.list, "MSE")
 ```
 
-    ## [1] "The best predictor set of 11 predictors, out of a max of 13, (MSE = 207.767)"
+    ## [1] "The best predictor set of 11 predictors, out of a max of 13, (MSE = 206.993)"
 
     ##  [1] "study_quantile"        "south"                
     ##  [3] "pct_white"             "pct_hs25_over"        
-    ##  [5] "pct_employed16_over"   "pct_public_coverage"  
-    ##  [7] "avg_ann_count_pop"     "avg_household_size"   
+    ##  [5] "pct_employed16_over"   "pct_private_coverage" 
+    ##  [7] "pct_public_coverage"   "avg_household_size"   
     ##  [9] "avg_deaths_yr_pop"     "med_income"           
     ## [11] "median_age_all_gender"
 
@@ -705,7 +705,7 @@ present.bs.result(b.mse.list, "MSE")
 present.bs.result(b.aic.list, "AIC")
 ```
 
-    ## [1] "The best predictor set of 11 predictors, out of a max of 13, (AIC = 21285.834)"
+    ## [1] "The best predictor set of 11 predictors, out of a max of 13, (AIC = 21286.302)"
 
     ##  [1] "study_quantile"        "south"                
     ##  [3] "pct_white"             "pct_hs25_over"        
@@ -718,7 +718,7 @@ present.bs.result(b.aic.list, "AIC")
 present.bs.result(b.bic.list, "BIC")
 ```
 
-    ## [1] "The best predictor set of 11 predictors, out of a max of 13, (BIC = 21380.492)"
+    ## [1] "The best predictor set of 11 predictors, out of a max of 13, (BIC = 21380.02)"
 
     ##  [1] "study_quantile"        "south"                
     ##  [3] "pct_white"             "pct_hs25_over"        
@@ -947,13 +947,13 @@ ridgeCV <- function(data.df, kfolds = 10, response){
 lassoCV(cancer.df, 10, "target_death_rate")
 ```
 
-    ## [1] 207.514
+    ## [1] 206.6856
 
 ``` r
 ridgeCV(cancer.df, 10, "target_death_rate")
 ```
 
-    ## [1] 207.3767
+    ## [1] 207.366
 
 3. Model Comparison
 ===================
@@ -1027,7 +1027,7 @@ table.result %>% knitr::kable(digits = 4)
 | fs.bic     |     14.4102|       14.3895|          0.6587|  13.7844|  14.9780|
 | bs.aic     |     14.4458|       14.4323|          0.6437|  13.8707|  15.0255|
 | bs.bic     |     14.4458|       14.4323|          0.6437|  13.8707|  15.0255|
-| bs.mse     |     14.4683|       14.4721|          0.6836|  13.8725|  15.0245|
+| bs.mse     |     14.4458|       14.4323|          0.6437|  13.8707|  15.0255|
 
 ### Visualize Model Comparison
 
@@ -1133,8 +1133,27 @@ cv.df.2 <- cancer.df %>%
 ``` echo
 #Scaled Diagnostic, unappreciably different
 par(mfrow = c(2,2))
-plot(lm(target_death_rate ~ ., data = cancer.df[, c(fs.aic.preds, 1)]))
+plot(final.model)
 ```
+
+### Multicollinearity
+
+``` r
+car::vif(final.model)
+```
+
+    ##                           GVIF Df GVIF^(1/(2*Df))
+    ## pct_white             1.635827  1        1.278994
+    ## pct_hs25_over         1.678778  1        1.295677
+    ## pct_employed16_over   3.284797  1        1.812401
+    ## pct_private_coverage  4.582318  1        2.140635
+    ## pct_public_coverage   7.012897  1        2.648187
+    ## avg_ann_count_pop     1.109809  1        1.053475
+    ## avg_deaths_yr_pop     3.414631  1        1.847872
+    ## med_income            3.733286  1        1.932171
+    ## study_quantile        1.313271  4        1.034652
+    ## median_age_all_gender 3.079289  1        1.754790
+    ## south                 1.583451  1        1.258352
 
 Appendix
 ========
